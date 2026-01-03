@@ -71,19 +71,19 @@ CREATE TABLE IF NOT EXISTS reports (
     content JSONB
 );
 
-CREATE TABLE universities (
+CREATE TABLE IF NOT EXISTS universities (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) NOT NULL UNIQUE
 );
 
-CREATE TABLE university_tutors (
-    university_id INTEGER REFERENCES universities(id),
-    tutor_id INTEGER REFERENCES tutors(user_id),
+CREATE TABLE IF NOT EXISTS university_tutors (
+    university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
+    tutor_id INTEGER REFERENCES tutors(user_id) ON DELETE CASCADE,
     PRIMARY KEY (university_id, tutor_id)
 );
 
-CREATE TABLE university_courses (
-    university_id INTEGER REFERENCES universities(id),
-    course_name VARCHAR(255),
+CREATE TABLE IF NOT EXISTS university_courses (
+    university_id INTEGER REFERENCES universities(id) ON DELETE CASCADE,
+    course_name VARCHAR(255) NOT NULL,
     PRIMARY KEY (university_id, course_name)
 );

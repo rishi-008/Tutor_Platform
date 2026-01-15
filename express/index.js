@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -14,6 +15,7 @@ const sessionsFilePath = path.join(__dirname, "api/sessions.json");
 const resourcesFilePath = path.join(__dirname, "api/resources.json");
 const universityFilePath = path.join(__dirname, "api/universities.json");
 
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const Tables = Object.freeze({
     ACCOUNTS: accountsFilePath,

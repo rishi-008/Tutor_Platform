@@ -32,6 +32,53 @@ pool.on("error", (err) => {
     console.error("[db] Pool error:", err);
 });
 
+const TUTOR_SELECT_COLUMNS = `
+    SELECT
+        u.id,
+        u.email,
+        u.password,
+        u.is_admin,
+        u.is_approved,
+        u.proof_doc,
+        t.user_id,
+        t.name,
+        t.age,
+        t.birthday,
+        t.language,
+        t.major,
+        t.phone,
+        t.description,
+        t.profile_pic,
+        t.approved_courses
+    FROM tutors t
+    JOIN users u ON u.id = t.user_id
+    WHERE u.user_type = 'tutor'
+`;
+
+const tutorRowToAccount = (row) => ({
+    id: row.id,
+    email: row.email,
+    password: row.password,
+    tutor: {
+        name: row.name,
+        rating: 0,
+        education: row.major || "",
+        costPerHour: 0,
+        birthday: row.birthday,
+        language: row.language,
+        description: row.description,
+        courses: row.approved_courses || [],
+        major: row.major,
+        phone: row.phone,
+        age: row.age,
+        profile_pic: row.profile_pic,
+    },
+    isAdmin: row.is_admin,
+    notifications: [],
+    proofdoc: row.proof_doc,
+    isApproved: row.is_approved,
+});
+
 app.get(
     "/api/health/db",
     asyncHandler(async (req, res) => {
@@ -132,30 +179,39 @@ app.get("/api/student/id", (req, res) => {
 });
 
 app.get("/api/tutor/id", (req, res) => {
-    const data = readData(Tables.ACCOUNTS);
-    let max = 0;
-    data.tutors.forEach(tutor => {
-        max = Math.max(max, tutor.id);
-    });
-    res.json(max + 1);
+    pool.query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM users")
+        .then((r) => res.json(Number(r.rows[0].next_id)))
+        .catch((err) => {
+            console.error("[db] next tutor id query failed:", err);
+            res.status(503).json({ message: "Database unavailable" });
+        });
 });
 
 // Get all items for tutor accounts
-app.get("/api/tutor", (req, res) => {
-    const data = readData(Tables.ACCOUNTS).tutors || [];
-    res.json(data);
-});
+app.get(
+    "/api/tutor",
+    asyncHandler(async (req, res) => {
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} ORDER BY t.user_id ASC`);
+        return res.json(r.rows.map(tutorRowToAccount));
+    })
+);
 
-app.get("/api/tutor/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.ACCOUNTS);
-    const item = data.tutors.find((item) => item.id == id);
-    if (item) {
-        res.json(item);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
+app.get(
+    "/api/tutor/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        return res.json(tutorRowToAccount(r.rows[0]));
+    })
+);
 
 // Add a new item to tutor accounts
 app.post("/api/tutor", (req, res) => {
@@ -252,18 +308,31 @@ app.delete("/api/student/:id/notification/:nid", (req, res) => {
 //     }
 // });
 
-app.put("/api/tutor/description/:id", (req, res) => {
-    const { id } = req.params;
-    const { description } = req.body;
-    const data = readData(Tables.ACCOUNTS);
-    const item = data.tutors.find((item) => item.id == id);
-    const updatedTutors = data.tutors.filter((item) => item.id != id);
-    item.tutor.description = description;
-    updatedTutors.push(item);
-    data.tutors = updatedTutors;
-    writeData(data, Tables.ACCOUNTS);
-    res.json(item);
-});
+app.put(
+    "/api/tutor/description/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const { description } = req.body || {};
+
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        if (typeof description !== "string") {
+            return res.status(400).json({ message: "Invalid description" });
+        }
+
+        const upd = await pool.query(
+            "UPDATE tutors SET description = $2 WHERE user_id = $1 RETURNING user_id",
+            [id, description]
+        );
+        if (upd.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
+        return res.json(tutorRowToAccount(r.rows[0]));
+    })
+);
 
 app.put("/api/student/password/:id", (req, res) => {
     const { id } = req.params;
@@ -292,27 +361,31 @@ app.put("/api/tutor/rating/:id", (req, res) => {
     }
 });
 
-app.put("/api/tutor/courses/:id", (req, res) => {
-    const { id } = req.params;
-    const { courses } = req.body;
-    console.log("this is the courses in the data layer", courses);
-    const data = readData(Tables.ACCOUNTS);
-    const item = data.tutors.find((item) => item.id == id);
-    if (item) {
-        const updatedTutors = data.tutors.filter((item) => item.id != id);
-        item.courses = item.courses || [];
-        for(let i = 0; i < courses.length; i++) {
-            item.tutor.courses.push(courses[i]);
-        };
-        // item.courses.push(course);
-        updatedTutors.push(item);
-        data.tutors = updatedTutors;
-        writeData(data, Tables.ACCOUNTS);
-        res.json(item);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
+app.put(
+    "/api/tutor/courses/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const { courses } = req.body || {};
+
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        if (!Array.isArray(courses) || !courses.every((c) => typeof c === "string")) {
+            return res.status(400).json({ message: "Invalid courses" });
+        }
+
+        const upd = await pool.query(
+            "UPDATE tutors SET approved_courses = COALESCE(approved_courses, '{}'::text[]) || $2::text[] WHERE user_id = $1 RETURNING user_id",
+            [id, courses]
+        );
+        if (upd.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
+        return res.json(tutorRowToAccount(r.rows[0]));
+    })
+);
 
 //TABLE UNIVERSITY
 

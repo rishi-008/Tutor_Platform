@@ -1,4 +1,4 @@
-require('dotenv').config();
+// require('dotenv').config(); Don't need this since using systemd
 const express = require("express");
 const fs = require("fs");
 const path = require("path");

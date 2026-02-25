@@ -15,7 +15,40 @@ const sessionsFilePath = path.join(__dirname, "api/sessions.json");
 const resourcesFilePath = path.join(__dirname, "api/resources.json");
 const universityFilePath = path.join(__dirname, "api/universities.json");
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// const DATABASE_URL = process.env.DATABASE_URL;
+
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // If you use sslmode=require or DO-managed DB, you may need ssl:
+  // ssl: { rejectUnauthorized: false },
+});
+
+
+app.get("/api/health/user-email/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({ message: "Invalid id" });
+    }
+
+    const r = await pool.query("SELECT email FROM users WHERE id = $1", [id]);
+    if (r.rowCount === 0) {
+        console.log(`[db] user-email: id=${id} not found`);
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    console.log(`[db] user-email: id=${id} email=${r.rows[0].email}`);
+    return res.json({ id, email: r.rows[0].email });
+});
+
+
+
+
+
+
+
+
 
 const Tables = Object.freeze({
     ACCOUNTS: accountsFilePath,

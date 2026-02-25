@@ -3,7 +3,10 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+const asyncHandler = (handler) => (req, res, next) =>
+    Promise.resolve(handler(req, res, next)).catch(next);
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend/build")));
@@ -25,22 +28,47 @@ const pool = new Pool({
   // ssl: { rejectUnauthorized: false },
 });
 
+pool.on("error", (err) => {
+    console.error("[db] Pool error:", err);
+});
 
-app.get("/api/health/user-email/:id", async (req, res) => {
+app.get(
+    "/api/health/db",
+    asyncHandler(async (req, res) => {
+        try {
+            await pool.query("SELECT 1 AS ok");
+            return res.json({ ok: true });
+        } catch (err) {
+            console.error("[db] health check failed:", err);
+            return res.status(503).json({ ok: false, error: err.code || err.message });
+        }
+    })
+);
+
+
+app.get(
+    "/api/health/user-email/:id",
+    asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
         return res.status(400).json({ message: "Invalid id" });
     }
 
-    const r = await pool.query("SELECT email FROM users WHERE id = $1", [id]);
-    if (r.rowCount === 0) {
-        console.log(`[db] user-email: id=${id} not found`);
-        return res.status(404).json({ message: "User not found" });
-    }
+    try {
+        const r = await pool.query("SELECT email FROM users WHERE id = $1", [id]);
+        if (r.rowCount === 0) {
+            console.log(`[db] user-email: id=${id} not found`);
+            return res.status(404).json({ message: "User not found" });
+        }
 
-    console.log(`[db] user-email: id=${id} email=${r.rows[0].email}`);
-    return res.json({ id, email: r.rows[0].email });
-});
+        console.log(`[db] user-email: id=${id} email=${r.rows[0].email}`);
+        return res.json({ id, email: r.rows[0].email });
+    } catch (err) {
+        console.error(`[db] user-email query failed (id=${id}):`, err);
+        return res.status(503).json({ message: "Database unavailable", error: err.code || err.message });
+    }
+})
+);
 
 
 
@@ -498,6 +526,13 @@ app.post("/api/reports", (req, res) => {
     data.reports.push(newItem);
     writeData(data, Tables.REPORTS);
     res.status(201).json(newItem);
+});
+
+// Centralized error handler (prevents unhandled async errors from crashing the process)
+app.use((err, req, res, next) => {
+    console.error("[http] Unhandled error:", err);
+    if (res.headersSent) return next(err);
+    return res.status(500).json({ message: "Internal server error" });
 });
 
 // serve react app

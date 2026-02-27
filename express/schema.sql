@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
-    category VARCHAR(50)
+    category VARCHAR(50),
+    status VARCHAR(10) NOT NULL DEFAULT 'unread'
+    CHECK (status IN ('unread', 'read'))
 );
 
 CREATE TABLE IF NOT EXISTS sessions (

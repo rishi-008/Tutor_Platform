@@ -120,7 +120,7 @@ const studentRowToAccount = (row) => ({
 
 const notificationsForUserId = async (userId) => {
     const r = await pool.query(
-        "SELECT id, message, category FROM notifications WHERE user_id = $1 ORDER BY id ASC",
+        "SELECT id, message, category, status FROM notifications WHERE user_id = $1 ORDER BY id ASC",
         [userId]
     );
     return r.rows;

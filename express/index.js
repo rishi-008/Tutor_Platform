@@ -55,6 +55,25 @@ const TUTOR_SELECT_COLUMNS = `
     WHERE u.user_type = 'tutor'
 `;
 
+const STUDENT_SELECT_COLUMNS = `
+    SELECT
+        u.id,
+        u.email,
+        u.password,
+        u.is_admin,
+        u.is_approved,
+        u.proof_doc,
+        s.user_id,
+        s.name,
+        s.age,
+        s.major,
+        s.birthday,
+        s.language
+    FROM students s
+    JOIN users u ON u.id = s.user_id
+    WHERE u.user_type = 'student'
+`;
+
 const tutorRowToAccount = (row) => ({
     id: row.id,
     email: row.email,
@@ -78,6 +97,31 @@ const tutorRowToAccount = (row) => ({
     proofdoc: row.proof_doc,
     isApproved: row.is_approved,
 });
+
+const studentRowToAccount = (row) => ({
+    id: row.id,
+    email: row.email,
+    password: row.password,
+    student: {
+        name: row.name,
+        age: row.age,
+        major: row.major,
+        birthday: row.birthday,
+        language: row.language,
+    },
+    isAdmin: row.is_admin,
+    notifications: [],
+    proofdoc: row.proof_doc,
+    isApproved: row.is_approved,
+});
+
+const notificationsForUserId = async (userId) => {
+    const r = await pool.query(
+        "SELECT id, message, category FROM notifications WHERE user_id = $1 ORDER BY id ASC",
+        [userId]
+    );
+    return r.rows;
+};
 
 app.get(
     "/api/health/db",
@@ -170,12 +214,12 @@ const writeData = (data, table) => {
 // });
 
 app.get("/api/student/id", (req, res) => {
-    const data = readData(Tables.ACCOUNTS);
-    let max = 0;
-    data.students.forEach(student => {
-        max = Math.max(max, student.id);
-    });
-    res.json(max + 1);
+    pool.query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM users")
+        .then((r) => res.json(Number(r.rows[0].next_id)))
+        .catch((err) => {
+            console.error("[db] next student id query failed:", err);
+            res.status(503).json({ message: "Database unavailable" });
+        });
 });
 
 app.get("/api/tutor/id", (req, res) => {
@@ -209,90 +253,263 @@ app.get(
             return res.status(404).json({ message: "Item not found" });
         }
 
-        return res.json(tutorRowToAccount(r.rows[0]));
+        const acc = tutorRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
     })
 );
 
 // Add a new item to tutor accounts
-app.post("/api/tutor", (req, res) => {
-    const newItem = req.body;
-    const data = readData(Tables.ACCOUNTS);
-    data.students = data.students || [];
-    data.tutors.push(newItem);
-    writeData(data, Tables.ACCOUNTS);
-    res.status(201).json(newItem);
-});
+app.post(
+    "/api/tutor",
+    asyncHandler(async (req, res) => {
+        const body = req.body || {};
+        const tutor = body.tutor || {};
+
+        const id = Number(body.id);
+        const hasClientId = Number.isInteger(id);
+        const email = body.email;
+        const password = body.password;
+        const isAdmin = Boolean(body.isAdmin);
+        const isApproved = Boolean(body.isApproved);
+        const proofdoc = body.proofdoc ?? null;
+
+        const name = tutor.name;
+        const age = tutor.age ?? null;
+        const birthday = typeof tutor.birthday === "string" && tutor.birthday.trim() === "" ? null : tutor.birthday ?? null;
+        const language = tutor.language ?? null;
+        const major = tutor.major ?? null;
+        const phone = tutor.phone ?? null;
+        const description = tutor.description ?? null;
+        const profile_pic = tutor.profile_pic ?? tutor.profilePic ?? null;
+        const approved_courses = Array.isArray(tutor.courses) ? tutor.courses : [];
+
+        if (typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ message: "Invalid email" });
+        }
+        if (typeof password !== "string") {
+            return res.status(400).json({ message: "Invalid password" });
+        }
+        if (typeof name !== "string" || name.trim() === "") {
+            return res.status(400).json({ message: "Invalid tutor name" });
+        }
+        if (!Array.isArray(approved_courses) || !approved_courses.every((c) => typeof c === "string")) {
+            return res.status(400).json({ message: "Invalid courses" });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            let createdUserId;
+            if (hasClientId) {
+                const u = await client.query(
+                    "INSERT INTO users (id, email, password, is_admin, is_approved, proof_doc, user_type) VALUES ($1, $2, $3, $4, $5, $6, 'tutor') RETURNING id",
+                    [id, email, password, isAdmin, isApproved, proofdoc]
+                );
+                createdUserId = u.rows[0].id;
+            } else {
+                const u = await client.query(
+                    "INSERT INTO users (email, password, is_admin, is_approved, proof_doc, user_type) VALUES ($1, $2, $3, $4, $5, 'tutor') RETURNING id",
+                    [email, password, isAdmin, isApproved, proofdoc]
+                );
+                createdUserId = u.rows[0].id;
+            }
+
+            await client.query(
+                "INSERT INTO tutors (user_id, name, age, birthday, language, major, phone, description, profile_pic, approved_courses) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[])",
+                [createdUserId, name, age, birthday, language, major, phone, description, profile_pic, approved_courses]
+            );
+
+            await client.query("COMMIT");
+
+            const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [createdUserId]);
+            const acc = tutorRowToAccount(r.rows[0]);
+            acc.notifications = await notificationsForUserId(createdUserId);
+            return res.status(201).json(acc);
+        } catch (err) {
+            await client.query("ROLLBACK");
+            if (err && err.code === "23505") {
+                return res.status(409).json({ message: "Email already exists" });
+            }
+            throw err;
+        } finally {
+            client.release();
+        }
+    })
+);
 
 // Delete an account item by ID
-app.delete("/api/tutor/:id", (req, res) => {
-    const { id } = req.params;
-    let data = readData(Tables.ACCOUNTS);
-    const initialLength = data.length;
-    data = data.filter((item) => item.id !== id);
-    if (data.length < initialLength) {
-        writeData(data, Tables.ACCOUNTS);
-        res.json({ message: `Item with ID ${id} deleted` });
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
-// Get all items for student accounts
-app.get("/api/student", (req, res) => {
-    const data = readData(Tables.ACCOUNTS);
-    res.json(data.students || []);
-});
+app.delete(
+    "/api/tutor/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
 
-app.get("/api/student/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.ACCOUNTS);
-    const item = data.students.find((item) => item.id == id);
-    if (item) {
-        res.json(item);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
+        const del = await pool.query(
+            "DELETE FROM users WHERE id = $1 AND user_type = 'tutor' RETURNING id",
+            [id]
+        );
+        if (del.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+        return res.json({ message: `Item with ID ${id} deleted` });
+    })
+);
+// Get all items for student accounts
+app.get(
+    "/api/student",
+    asyncHandler(async (req, res) => {
+        const r = await pool.query(`${STUDENT_SELECT_COLUMNS} ORDER BY s.user_id ASC`);
+        return res.json(r.rows.map(studentRowToAccount));
+    })
+);
+
+app.get(
+    "/api/student/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const r = await pool.query(`${STUDENT_SELECT_COLUMNS} AND s.user_id = $1`, [id]);
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const acc = studentRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
+    })
+);
 
 
 // Add a new item to student accounts
-app.post("/api/student", (req, res) => {
-    const newItem = req.body;
-    const data = readData(Tables.ACCOUNTS);
-    data.students = data.students || [];
-    data.students.push(newItem);
-    writeData(data, Tables.ACCOUNTS);
-    res.status(201).json(newItem);
-});
+app.post(
+    "/api/student",
+    asyncHandler(async (req, res) => {
+        const body = req.body || {};
+        const student = body.student || {};
+
+        const id = Number(body.id);
+        const hasClientId = Number.isInteger(id);
+        const email = body.email;
+        const password = body.password;
+        const isAdmin = Boolean(body.isAdmin);
+        const isApproved = Boolean(body.isApproved);
+        const proofdoc = body.proofdoc ?? null;
+
+        const name = student.name;
+        const age = student.age ?? null;
+        const major = student.major ?? null;
+        const birthday = typeof student.birthday === "string" && student.birthday.trim() === "" ? null : student.birthday ?? null;
+        const language = student.language ?? null;
+
+        if (typeof email !== "string" || email.trim() === "") {
+            return res.status(400).json({ message: "Invalid email" });
+        }
+        if (typeof password !== "string") {
+            return res.status(400).json({ message: "Invalid password" });
+        }
+        if (typeof name !== "string" || name.trim() === "") {
+            return res.status(400).json({ message: "Invalid student name" });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            let createdUserId;
+            if (hasClientId) {
+                const u = await client.query(
+                    "INSERT INTO users (id, email, password, is_admin, is_approved, proof_doc, user_type) VALUES ($1, $2, $3, $4, $5, $6, 'student') RETURNING id",
+                    [id, email, password, isAdmin, isApproved, proofdoc]
+                );
+                createdUserId = u.rows[0].id;
+            } else {
+                const u = await client.query(
+                    "INSERT INTO users (email, password, is_admin, is_approved, proof_doc, user_type) VALUES ($1, $2, $3, $4, $5, 'student') RETURNING id",
+                    [email, password, isAdmin, isApproved, proofdoc]
+                );
+                createdUserId = u.rows[0].id;
+            }
+
+            await client.query(
+                "INSERT INTO students (user_id, name, age, major, birthday, language) VALUES ($1, $2, $3, $4, $5, $6)",
+                [createdUserId, name, age, major, birthday, language]
+            );
+
+            const notificationRows = Array.isArray(body.notifications) ? body.notifications : [];
+            for (const n of notificationRows) {
+                if (!n || typeof n.message !== "string") continue;
+                await client.query(
+                    "INSERT INTO notifications (user_id, message, category) VALUES ($1, $2, $3)",
+                    [createdUserId, n.message, typeof n.category === "string" ? n.category : null]
+                );
+            }
+
+            await client.query("COMMIT");
+
+            const r = await pool.query(`${STUDENT_SELECT_COLUMNS} AND s.user_id = $1`, [createdUserId]);
+            const acc = studentRowToAccount(r.rows[0]);
+            acc.notifications = await notificationsForUserId(createdUserId);
+            return res.status(201).json(acc);
+        } catch (err) {
+            await client.query("ROLLBACK");
+            if (err && err.code === "23505") {
+                return res.status(409).json({ message: "Email already exists" });
+            }
+            throw err;
+        } finally {
+            client.release();
+        }
+    })
+);
 
 // Delete a student account item by ID
-app.delete("/api/student/:id", (req, res) => {
-    const { id } = req.params;
-    let data = readData(Tables.ACCOUNTS);
-    const initialLength = data.students.length;
-    data.students = data.students.filter((item) => item.id !== id);
-    if (data.students.length < initialLength) {
-        writeData(data, Tables.ACCOUNTS);
-        res.json({ message: `Item with ID ${id} deleted` });
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
+app.delete(
+    "/api/student/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
 
-app.delete("/api/student/:id/notification/:nid", (req, res) => {
-    const { id, nid } = req.params;
-    let data = readData(Tables.ACCOUNTS);
-    const initialLength = data.students.length;
-    const student = data.students.find((item) => item.id == id);
-    student.notifications = data.students.notifications.filter((item) => item.id !== nid);
-    data.students = data.students.filter((item) => item.id !== id);
-    data.students.push(student);
-    if (data.students.length < initialLength) {
-        writeData(data, Tables.ACCOUNTS);
-        res.json({ message: `Item with ID ${id} deleted` });
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
+        const del = await pool.query(
+            "DELETE FROM users WHERE id = $1 AND user_type = 'student' RETURNING id",
+            [id]
+        );
+        if (del.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+        return res.json({ message: `Item with ID ${id} deleted` });
+    })
+);
+
+app.delete(
+    "/api/student/:id/notification/:nid",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const nid = Number(req.params.nid);
+        if (!Number.isInteger(id) || !Number.isInteger(nid)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const del = await pool.query(
+            "DELETE FROM notifications WHERE id = $2 AND user_id = $1 RETURNING id",
+            [id, nid]
+        );
+        if (del.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const remaining = await notificationsForUserId(id);
+        return res.json(remaining);
+    })
+);
 
 // app.put("/api/tutor/description/:id", (req, res) => {
 //     const { id } = req.params;
@@ -330,22 +547,39 @@ app.put(
         }
 
         const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
-        return res.json(tutorRowToAccount(r.rows[0]));
+        const acc = tutorRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
     })
 );
 
-app.put("/api/student/password/:id", (req, res) => {
-    const { id } = req.params;
-    const { password } = req.body;
-    const data = readData(Tables.ACCOUNTS);
-    const item = data.students.find((item) => item.id == id);
-    const updatedStudents = data.students.filter((item) => item.id != id);
-    item.password = password;
-    updatedStudents.push(item);
-    data.students = updatedStudents;
-    writeData(data, Tables.ACCOUNTS);
-    res.json(item);
-});
+app.put(
+    "/api/student/password/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const { password } = req.body || {};
+
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        if (typeof password !== "string") {
+            return res.status(400).json({ message: "Invalid password" });
+        }
+
+        const upd = await pool.query(
+            "UPDATE users SET password = $2 WHERE id = $1 AND user_type = 'student' RETURNING id",
+            [id, password]
+        );
+        if (upd.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const r = await pool.query(`${STUDENT_SELECT_COLUMNS} AND s.user_id = $1`, [id]);
+        const acc = studentRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
+    })
+);
 
 app.put("/api/tutor/rating/:id", (req, res) => {
     const { id } = req.params;
@@ -383,7 +617,9 @@ app.put(
         }
 
         const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
-        return res.json(tutorRowToAccount(r.rows[0]));
+        const acc = tutorRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
     })
 );
 

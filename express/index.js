@@ -45,11 +45,13 @@ const TUTOR_SELECT_COLUMNS = `
         t.age,
         t.birthday,
         t.language,
-        t.major,
+        t.education,
         t.phone,
         t.description,
         t.profile_pic,
-        t.approved_courses
+        t.approved_courses,
+        t.rating::float8 AS rating,
+        t."costPerHour"::float8 AS "costPerHour"
     FROM tutors t
     JOIN users u ON u.id = t.user_id
     WHERE u.user_type = 'tutor'
@@ -80,14 +82,15 @@ const tutorRowToAccount = (row) => ({
     password: row.password,
     tutor: {
         name: row.name,
-        rating: 0,
-        education: row.major || "",
-        costPerHour: 0,
+        rating: typeof row.rating === "number" ? row.rating : Number(row.rating || 0),
+        education: row.education || "",
+        costPerHour:
+            typeof row.costPerHour === "number" ? row.costPerHour : Number(row.costPerHour || 0),
         birthday: row.birthday,
         language: row.language,
         description: row.description,
         courses: row.approved_courses || [],
-        major: row.major,
+        major: row.education,
         phone: row.phone,
         age: row.age,
         profile_pic: row.profile_pic,
@@ -278,11 +281,15 @@ app.post(
         const age = tutor.age ?? null;
         const birthday = typeof tutor.birthday === "string" && tutor.birthday.trim() === "" ? null : tutor.birthday ?? null;
         const language = tutor.language ?? null;
-        const major = tutor.major ?? null;
+        const education = tutor.education ?? tutor.major ?? null;
         const phone = tutor.phone ?? null;
         const description = tutor.description ?? null;
         const profile_pic = tutor.profile_pic ?? tutor.profilePic ?? null;
         const approved_courses = Array.isArray(tutor.courses) ? tutor.courses : [];
+        const ratingRaw = tutor.rating ?? 0;
+        const costRaw = tutor.costPerHour ?? tutor.cost_per_hour ?? tutor.cost ?? 0;
+        const rating = ratingRaw === null || ratingRaw === "" ? 0 : Number(ratingRaw);
+        const costPerHour = costRaw === null || costRaw === "" ? 0 : Number(costRaw);
 
         if (typeof email !== "string" || email.trim() === "") {
             return res.status(400).json({ message: "Invalid email" });
@@ -295,6 +302,12 @@ app.post(
         }
         if (!Array.isArray(approved_courses) || !approved_courses.every((c) => typeof c === "string")) {
             return res.status(400).json({ message: "Invalid courses" });
+        }
+        if (!Number.isFinite(rating) || rating < 0) {
+            return res.status(400).json({ message: "Invalid rating" });
+        }
+        if (!Number.isFinite(costPerHour) || costPerHour < 0) {
+            return res.status(400).json({ message: "Invalid costPerHour" });
         }
 
         const client = await pool.connect();
@@ -317,8 +330,21 @@ app.post(
             }
 
             await client.query(
-                "INSERT INTO tutors (user_id, name, age, birthday, language, major, phone, description, profile_pic, approved_courses) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[])",
-                [createdUserId, name, age, birthday, language, major, phone, description, profile_pic, approved_courses]
+                "INSERT INTO tutors (user_id, name, age, birthday, language, education, phone, description, profile_pic, approved_courses, rating, \"costPerHour\") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12)",
+                [
+                    createdUserId,
+                    name,
+                    age,
+                    birthday,
+                    language,
+                    education,
+                    phone,
+                    description,
+                    profile_pic,
+                    approved_courses,
+                    rating,
+                    costPerHour,
+                ]
             );
 
             await client.query("COMMIT");

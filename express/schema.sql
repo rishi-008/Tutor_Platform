@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS tutors (
     age INTEGER,
     birthday DATE,
     language VARCHAR(100),
-    major VARCHAR(255),
+    education VARCHAR(255),
     phone VARCHAR(50),
     description TEXT,
     profile_pic TEXT,
-    approved_courses TEXT[]
+    approved_courses TEXT[],
+    rating NUMERIC(3,2) DEFAULT 0,
+    "costPerHour" NUMERIC(10,2) DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS notifications (

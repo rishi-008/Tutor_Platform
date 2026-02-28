@@ -307,7 +307,8 @@ const writeData = (data, table) => {
 // });
 
 app.get("/api/student/id", (req, res) => {
-    pool.query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM users")
+    // Use the SERIAL sequence (atomic) to avoid race conditions from MAX(id)+1.
+    pool.query("SELECT nextval(pg_get_serial_sequence('users','id')) AS next_id")
         .then((r) => res.json(Number(r.rows[0].next_id)))
         .catch((err) => {
             console.error("[db] next student id query failed:", err);
@@ -316,7 +317,8 @@ app.get("/api/student/id", (req, res) => {
 });
 
 app.get("/api/tutor/id", (req, res) => {
-    pool.query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM users")
+    // Use the SERIAL sequence (atomic) to avoid race conditions from MAX(id)+1.
+    pool.query("SELECT nextval(pg_get_serial_sequence('users','id')) AS next_id")
         .then((r) => res.json(Number(r.rows[0].next_id)))
         .catch((err) => {
             console.error("[db] next tutor id query failed:", err);
@@ -419,6 +421,11 @@ app.post(
                 createdUserId = u.rows[0].id;
             }
 
+            // Keep the users.id sequence aligned even if callers insert explicit ids.
+            await client.query(
+                "SELECT setval(pg_get_serial_sequence('users','id'), (SELECT COALESCE(MAX(id), 1) FROM users), true)"
+            );
+
             await client.query(
                 "INSERT INTO tutors (user_id, name, age, birthday, language, education, phone, description, profile_pic, approved_courses, rating, \"costPerHour\") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12)",
                 [
@@ -446,7 +453,13 @@ app.post(
         } catch (err) {
             await client.query("ROLLBACK");
             if (err && err.code === "23505") {
-                return res.status(409).json({ message: "Email already exists" });
+                if (err.constraint === "users_email_key") {
+                    return res.status(409).json({ message: "Email already exists" });
+                }
+                if (err.constraint === "users_pkey") {
+                    return res.status(409).json({ message: "User id already exists" });
+                }
+                return res.status(409).json({ message: "Duplicate key" });
             }
             throw err;
         } finally {
@@ -553,6 +566,11 @@ app.post(
                 createdUserId = u.rows[0].id;
             }
 
+            // Keep the users.id sequence aligned even if callers insert explicit ids.
+            await client.query(
+                "SELECT setval(pg_get_serial_sequence('users','id'), (SELECT COALESCE(MAX(id), 1) FROM users), true)"
+            );
+
             await client.query(
                 "INSERT INTO students (user_id, name, age, major, birthday, language) VALUES ($1, $2, $3, $4, $5, $6)",
                 [createdUserId, name, age, major, birthday, language]
@@ -576,7 +594,13 @@ app.post(
         } catch (err) {
             await client.query("ROLLBACK");
             if (err && err.code === "23505") {
-                return res.status(409).json({ message: "Email already exists" });
+                if (err.constraint === "users_email_key") {
+                    return res.status(409).json({ message: "Email already exists" });
+                }
+                if (err.constraint === "users_pkey") {
+                    return res.status(409).json({ message: "User id already exists" });
+                }
+                return res.status(409).json({ message: "Duplicate key" });
             }
             throw err;
         } finally {

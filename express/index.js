@@ -126,6 +126,96 @@ const notificationsForUserId = async (userId) => {
     return r.rows;
 };
 
+const coerceTimestampOrNull = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed === "") return null;
+        return trimmed;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return new Date(value);
+    }
+    if (value instanceof Date) return value;
+    return null;
+};
+
+const sessionRowToDto = (row) => {
+    const startTime = row.start_time ? new Date(row.start_time).toISOString() : "";
+    const endTime = row.end_time ? new Date(row.end_time).toISOString() : "";
+
+    const chatMessages = Array.isArray(row.chat_messages) ? row.chat_messages : row.chat_messages || [];
+    const resources = Array.isArray(row.resources) ? row.resources : row.resources || [];
+
+    const dto = {
+        id: row.id,
+        student: row.student_name,
+        studentId: row.student_id,
+        tutor: row.tutor_name,
+        tutorId: row.tutor_id,
+        focus: row.focus,
+        profilePic: row.profile_pic,
+        status: row.status,
+        startTime,
+        endTime,
+        duration: row.duration,
+        progress: row.progress,
+        reportId: row.report_id,
+        description: row.description,
+        classLink: row.class_link,
+        reason: row.reason,
+        chatMessages,
+        resources,
+    };
+
+    if (dto.status === "pending") {
+        dto.message = row.description ?? null;
+    }
+
+    return dto;
+};
+
+const hydrateResourceNamesForSessions = async (sessionDtos) => {
+    const ids = new Set();
+    for (const s of sessionDtos) {
+        if (!s || !Array.isArray(s.resources)) continue;
+        for (const r of s.resources) {
+            if (typeof r === "number" && Number.isInteger(r)) {
+                ids.add(r);
+                continue;
+            }
+            if (typeof r === "string" && /^\d+$/.test(r)) {
+                ids.add(Number(r));
+            }
+        }
+    }
+
+    if (ids.size === 0) return sessionDtos;
+
+    const idArray = Array.from(ids);
+    const r = await pool.query(
+        "SELECT id, name FROM resources WHERE id = ANY($1::int[])",
+        [idArray]
+    );
+    const map = new Map(r.rows.map((row) => [Number(row.id), row.name]));
+
+    for (const s of sessionDtos) {
+        if (!s || !Array.isArray(s.resources)) continue;
+        s.resources = s.resources.map((val) => {
+            if (typeof val === "number" && Number.isInteger(val)) {
+                return map.get(val) ?? val;
+            }
+            if (typeof val === "string" && /^\d+$/.test(val)) {
+                const n = Number(val);
+                return map.get(n) ?? val;
+            }
+            return val;
+        });
+    }
+
+    return sessionDtos;
+};
+
 app.get(
     "/api/health/db",
     asyncHandler(async (req, res) => {
@@ -669,169 +759,457 @@ app.get("/api/university/:name", (req, res) => {
 
 //SESSIONS
 
-app.get("/api/session", (req, res) => {
-    const data = readData(Tables.SESSIONS);
-    if (data) {
-        writeResources();
-        res.json(data.sessions);
-    }
-});
-
-app.get("/api/session/id", (req, res) => {
-    const data = readData(Tables.SESSIONS);
-    let max = 0;
-    data.sessions.forEach(session => {
-        max = Math.max(max, session.id);
-    });
-    res.json(max + 1);
-});
-
-app.get("/api/session/active/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "active" && item.student === name);
-    res.json(items);
-});
-
-app.get("/api/session/tutor/active/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "active" && item.tutor === name);
-    res.json(items);
-});
-
-app.get("/api/session/pending/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "pending" && item.student === name);
-    res.json(items);
-});
-
-app.get("/api/session/tutor/pending/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "pending" && item.tutor === name);
-    res.json(items);
-});
-
-app.get("/api/session/canceled/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "declined" && item.student === name);
-    res.json(items);
-});
-
-app.get("/api/session/tutor/canceled/:name", (req, res) => {
-    const { name } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.status === "declined" && item.tutor === name);
-    res.json(items);
-});
-
-app.get("/api/session/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const item = data.sessions.find((item) => item.id === id);
-    if (item) {
-        res.json(item);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
-
-app.delete("/api/session/:id", (req, res) => {
-    const { id } = req.params;
-    let data = readData(Tables.SESSIONS);
-    const initialLength = data.sessions.length;
-    data.sessions = data.sessions.filter((item) => item.id !== id);
-    if (data.sessions.length < initialLength) {
-        writeData(data, Tables.SESSIONS);
-        res.json({ message: `Item with ID ${id} deleted` });
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
-
-app.get("/api/session/tutor/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.tutorId === id);
-    if (items) {
-        res.json(items);
-    } else {
-        res.status(404).json({ message: "Tutor's courses not found" });
-    }
-});
-
-app.get("/api/session/student/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const items = data.sessions.filter((item) => item.studentId === id);
-    if (items) {
-        res.json(items);
-    } else {
-        res.status(404).json({ message: "Student's courses not found" });
-    }
-});
-
-app.get("/api/session/chat/:id", (req, res) => {
-    const { id } = req.params;
-    const data = readData(Tables.SESSIONS);
-    const item = data.sessions.find((item) => item.id == id);
-    if (item) {
-        res.json(item.chatMessages);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
-
-app.post("/api/session/chat/:id", (req, res) => {
-    const { id } = req.params;
-    const { sender, message } = req.body;
-    const data = readData(Tables.SESSIONS);
-    const item = data.sessions.find((item) => item.id == id);
-    if (item) {
-        item.chatMessages.push({ sender, message });
-        writeData(data, Tables.SESSIONS);
-        res.json(item.chatMessages);
-    } else {
-        res.status(404).json({ message: "Item not found" });
-    }
-});
-
-app.post("/api/session", (req, res) => {
-    const newItem = req.body;
-    const data = readData(Tables.SESSIONS);
-    const sessions = data.sessions;
-    const existingSession = sessions.find(session =>
-        session.status === "pending" &&
-        session.student === newItem.student &&
-        session.tutor === newItem.tutor
+const fetchSessionsWhere = async (whereSql, params) => {
+    const r = await pool.query(
+        `SELECT * FROM sessions ${whereSql} ORDER BY id ASC`,
+        params
     );
+    let dtos = r.rows.map(sessionRowToDto);
+    dtos = await hydrateResourceNamesForSessions(dtos);
+    return dtos;
+};
 
-    if (existingSession) {
-        res.status(400).json({ message: "A pending session already exists between this student and tutor." });
-    } else {
-        sessions.push(newItem);
-        writeData(data, Tables.SESSIONS);
-        res.status(201).json(newItem);
-    }
-});
+const parseSessionBodyToDb = (body) => {
+    const b = body || {};
 
-app.post("/api/session/update/:id", (req, res) => {
-    const { id } = req.params;
-    const updatedItem = req.body;
-    const data = readData(Tables.SESSIONS);
-    const item = data.sessions.find((item) => item.id == id);
-    if (item) {
-        let index = data.sessions.findIndex((session) => session.id == id);
-        data.sessions[index] = updatedItem;
-        writeData(data, Tables.SESSIONS);
-        res.json(updatedItem);
-    } else {
-        res.status(404).json({ message: "Item not found" });
+    const toIntOrNull = (value) => {
+        if (value === null || value === undefined) return null;
+        if (typeof value === "string" && value.trim() === "") return null;
+        const n = Number(value);
+        return Number.isInteger(n) ? n : null;
+    };
+
+    const toNumberOrNull = (value) => {
+        if (value === null || value === undefined) return null;
+        if (typeof value === "string" && value.trim() === "") return null;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    };
+
+    const studentName = b.student ?? b.student_name ?? null;
+    const tutorName = b.tutor ?? b.tutor_name ?? null;
+    const studentId = toIntOrNull(b.studentId ?? b.student_id);
+    const tutorId = toIntOrNull(b.tutorId ?? b.tutor_id);
+
+    const focus = b.focus ?? null;
+    const profilePic = b.profilePic ?? b.profile_pic ?? null;
+    const status = b.status ?? null;
+    const startTime = coerceTimestampOrNull(b.startTime ?? b.start_time);
+    const endTime = coerceTimestampOrNull(b.endTime ?? b.end_time);
+
+    const duration = toNumberOrNull(b.duration);
+    const progress = toNumberOrNull(b.progress);
+    const reportId = toIntOrNull(b.reportId ?? b.report_id);
+
+    const classLink = b.classLink ?? b.class_link ?? null;
+    const reason = b.reason ?? null;
+
+    const description = b.description ?? b.message ?? null;
+    const chatMessages = Array.isArray(b.chatMessages) ? b.chatMessages : [];
+    const resources = Array.isArray(b.resources) ? b.resources.map((x) => String(x)) : [];
+
+    return {
+        studentId,
+        tutorId,
+        studentName,
+        tutorName,
+        focus,
+        profilePic,
+        status,
+        startTime,
+        endTime,
+        duration,
+        progress,
+        reportId,
+        description,
+        classLink,
+        reason,
+        chatMessages,
+        resources,
+    };
+};
+
+app.get(
+    "/api/session",
+    asyncHandler(async (req, res) => {
+        const sessions = await fetchSessionsWhere("", []);
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/id",
+    asyncHandler(async (req, res) => {
+        const r = await pool.query("SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM sessions");
+        return res.json(Number(r.rows[0].next_id));
+    })
+);
+
+app.get(
+    "/api/session/active/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'active' AND student_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/tutor/active/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'active' AND tutor_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/pending/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'pending' AND student_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/tutor/pending/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'pending' AND tutor_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/canceled/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'declined' AND student_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/tutor/canceled/:name",
+    asyncHandler(async (req, res) => {
+        const { name } = req.params;
+        const sessions = await fetchSessionsWhere(
+            "WHERE status = 'declined' AND tutor_name = $1",
+            [name]
+        );
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const r = await pool.query("SELECT * FROM sessions WHERE id = $1", [id]);
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        let dto = sessionRowToDto(r.rows[0]);
+        const hydrated = await hydrateResourceNamesForSessions([dto]);
+        dto = hydrated[0];
+        return res.json(dto);
+    })
+);
+
+app.delete(
+    "/api/session/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const del = await pool.query("DELETE FROM sessions WHERE id = $1 RETURNING id", [id]);
+        if (del.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+        return res.json({ message: `Item with ID ${id} deleted` });
+    })
+);
+
+app.get(
+    "/api/session/tutor/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        const sessions = await fetchSessionsWhere("WHERE tutor_id = $1", [id]);
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/student/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        const sessions = await fetchSessionsWhere("WHERE student_id = $1", [id]);
+        return res.json(sessions);
+    })
+);
+
+app.get(
+    "/api/session/chat/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const r = await pool.query(
+            "SELECT chat_messages FROM sessions WHERE id = $1",
+            [id]
+        );
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const chat = Array.isArray(r.rows[0].chat_messages) ? r.rows[0].chat_messages : r.rows[0].chat_messages || [];
+        return res.json(chat);
+    })
+);
+
+app.post(
+    "/api/session/chat/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const { sender, message } = req.body || {};
+
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+        if (typeof sender !== "string" || typeof message !== "string") {
+            return res.status(400).json({ message: "Invalid chat message" });
+        }
+
+        const payload = JSON.stringify([{ sender, message }]);
+        const upd = await pool.query(
+            "UPDATE sessions SET chat_messages = COALESCE(chat_messages, '[]'::jsonb) || $2::jsonb WHERE id = $1 RETURNING chat_messages",
+            [id, payload]
+        );
+        if (upd.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const chat = Array.isArray(upd.rows[0].chat_messages) ? upd.rows[0].chat_messages : upd.rows[0].chat_messages || [];
+        return res.json(chat);
+    })
+);
+
+const insertSession = async (explicitId, body) => {
+    const db = parseSessionBodyToDb(body);
+    const id = explicitId ?? (Number.isInteger(Number(body?.id)) ? Number(body.id) : null);
+
+    if (id !== null && !Number.isInteger(id)) {
+        return { status: 400, json: { message: "Invalid id" } };
     }
-});
+
+    // Prevent duplicate pending sessions (legacy behavior)
+    if (db.status === "pending") {
+        if (db.studentId !== null && db.tutorId !== null) {
+            const ex = await pool.query(
+                "SELECT 1 FROM sessions WHERE status = 'pending' AND student_id = $1 AND tutor_id = $2 LIMIT 1",
+                [db.studentId, db.tutorId]
+            );
+            if (ex.rowCount > 0) {
+                return {
+                    status: 400,
+                    json: { message: "A pending session already exists between this student and tutor." },
+                };
+            }
+        } else if (db.studentName && db.tutorName) {
+            const ex = await pool.query(
+                "SELECT 1 FROM sessions WHERE status = 'pending' AND student_name = $1 AND tutor_name = $2 LIMIT 1",
+                [db.studentName, db.tutorName]
+            );
+            if (ex.rowCount > 0) {
+                return {
+                    status: 400,
+                    json: { message: "A pending session already exists between this student and tutor." },
+                };
+            }
+        }
+    }
+
+    const chatJson = JSON.stringify(db.chatMessages);
+
+    let r;
+    if (id !== null) {
+        r = await pool.query(
+            "INSERT INTO sessions (id, student_id, tutor_id, student_name, tutor_name, focus, profile_pic, status, start_time, end_time, duration, progress, report_id, description, class_link, reason, chat_messages, resources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::text[]) RETURNING *",
+            [
+                id,
+                db.studentId,
+                db.tutorId,
+                db.studentName,
+                db.tutorName,
+                db.focus,
+                db.profilePic,
+                db.status,
+                db.startTime,
+                db.endTime,
+                db.duration,
+                db.progress,
+                db.reportId,
+                db.description,
+                db.classLink,
+                db.reason,
+                chatJson,
+                db.resources,
+            ]
+        );
+    } else {
+        r = await pool.query(
+            "INSERT INTO sessions (student_id, tutor_id, student_name, tutor_name, focus, profile_pic, status, start_time, end_time, duration, progress, report_id, description, class_link, reason, chat_messages, resources) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::text[]) RETURNING *",
+            [
+                db.studentId,
+                db.tutorId,
+                db.studentName,
+                db.tutorName,
+                db.focus,
+                db.profilePic,
+                db.status,
+                db.startTime,
+                db.endTime,
+                db.duration,
+                db.progress,
+                db.reportId,
+                db.description,
+                db.classLink,
+                db.reason,
+                chatJson,
+                db.resources,
+            ]
+        );
+    }
+
+    let dto = sessionRowToDto(r.rows[0]);
+    const hydrated = await hydrateResourceNamesForSessions([dto]);
+    dto = hydrated[0];
+    return { status: 201, json: dto };
+};
+
+app.post(
+    "/api/session",
+    asyncHandler(async (req, res) => {
+        const result = await insertSession(null, req.body);
+        return res.status(result.status).json(result.json);
+    })
+);
+
+// Legacy client behavior: POST /api/session/:id
+app.post(
+    "/api/session/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        const result = await insertSession(id, req.body);
+        return res.status(result.status).json(result.json);
+    })
+);
+
+app.post(
+    "/api/session/update/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const existing = await pool.query("SELECT * FROM sessions WHERE id = $1", [id]);
+        if (existing.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const body = req.body || {};
+        const patch = parseSessionBodyToDb(body);
+
+        const has = (k) => Object.prototype.hasOwnProperty.call(body, k);
+        const useDescription = has("description") || has("message");
+        const useChat = has("chatMessages") || has("chat_messages");
+        const useResources = has("resources");
+        const useStart = has("startTime") || has("start_time");
+        const useEnd = has("endTime") || has("end_time");
+        const useReport = has("reportId") || has("report_id");
+
+        const merged = {
+            student_id: (has("studentId") || has("student_id")) ? patch.studentId : existing.rows[0].student_id,
+            tutor_id: (has("tutorId") || has("tutor_id")) ? patch.tutorId : existing.rows[0].tutor_id,
+            student_name: (has("student") || has("student_name")) ? patch.studentName : existing.rows[0].student_name,
+            tutor_name: (has("tutor") || has("tutor_name")) ? patch.tutorName : existing.rows[0].tutor_name,
+            focus: has("focus") ? patch.focus : existing.rows[0].focus,
+            profile_pic: (has("profilePic") || has("profile_pic")) ? patch.profilePic : existing.rows[0].profile_pic,
+            status: has("status") ? patch.status : existing.rows[0].status,
+            start_time: useStart ? patch.startTime : existing.rows[0].start_time,
+            end_time: useEnd ? patch.endTime : existing.rows[0].end_time,
+            duration: has("duration") ? patch.duration : existing.rows[0].duration,
+            progress: has("progress") ? patch.progress : existing.rows[0].progress,
+            report_id: useReport ? patch.reportId : existing.rows[0].report_id,
+            description: useDescription ? patch.description : existing.rows[0].description,
+            class_link: (has("classLink") || has("class_link")) ? patch.classLink : existing.rows[0].class_link,
+            reason: has("reason") ? patch.reason : existing.rows[0].reason,
+            chat_messages: useChat ? patch.chatMessages : (existing.rows[0].chat_messages || []),
+            resources: useResources ? patch.resources : (existing.rows[0].resources || []),
+        };
+
+        const upd = await pool.query(
+            "UPDATE sessions SET student_id=$2, tutor_id=$3, student_name=$4, tutor_name=$5, focus=$6, profile_pic=$7, status=$8, start_time=$9, end_time=$10, duration=$11, progress=$12, report_id=$13, description=$14, class_link=$15, reason=$16, chat_messages=$17::jsonb, resources=$18::text[] WHERE id=$1 RETURNING *",
+            [
+                id,
+                merged.student_id,
+                merged.tutor_id,
+                merged.student_name,
+                merged.tutor_name,
+                merged.focus,
+                merged.profile_pic,
+                merged.status,
+                merged.start_time,
+                merged.end_time,
+                merged.duration,
+                merged.progress,
+                merged.report_id,
+                merged.description,
+                merged.class_link,
+                merged.reason,
+                JSON.stringify(merged.chat_messages),
+                Array.isArray(merged.resources) ? merged.resources.map((x) => String(x)) : [],
+            ]
+        );
+
+        let dto = sessionRowToDto(upd.rows[0]);
+        const hydrated = await hydrateResourceNamesForSessions([dto]);
+        dto = hydrated[0];
+        return res.json(dto);
+    })
+);
 
 app.get("/api/reports/:id", (req, res) => {
     const { id } = req.params;

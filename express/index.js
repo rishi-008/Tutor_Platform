@@ -169,7 +169,7 @@ const sessionRowToDto = (row) => {
     };
 
     if (dto.status === "pending") {
-        dto.message = row.description ?? null;
+        dto.message = row.reason ?? null;
     }
 
     return dto;
@@ -794,17 +794,21 @@ const parseSessionBodyToDb = (body) => {
     const focus = b.focus ?? null;
     const profilePic = b.profilePic ?? b.profile_pic ?? null;
     const status = b.status ?? null;
-    const startTime = coerceTimestampOrNull(b.startTime ?? b.start_time);
-    const endTime = coerceTimestampOrNull(b.endTime ?? b.end_time);
+
+    // Only set start/end times once accepted (active/completed). Pending/declined should not set them.
+    const shouldHaveTimes = status !== "pending" && status !== "declined";
+    const startTime = shouldHaveTimes ? coerceTimestampOrNull(b.startTime ?? b.start_time) : null;
+    const endTime = shouldHaveTimes ? coerceTimestampOrNull(b.endTime ?? b.end_time) : null;
 
     const duration = toNumberOrNull(b.duration);
     const progress = toNumberOrNull(b.progress);
     const reportId = toIntOrNull(b.reportId ?? b.report_id);
 
     const classLink = b.classLink ?? b.class_link ?? null;
-    const reason = b.reason ?? null;
+    // Pending connection-request message is stored in reason
+    const reason = b.reason ?? b.message ?? null;
 
-    const description = b.description ?? b.message ?? null;
+    const description = b.description ?? null;
     const chatMessages = Array.isArray(b.chatMessages) ? b.chatMessages : [];
     const resources = Array.isArray(b.resources) ? b.resources.map((x) => String(x)) : [];
 
@@ -1175,10 +1179,15 @@ app.post(
             report_id: useReport ? patch.reportId : existing.rows[0].report_id,
             description: useDescription ? patch.description : existing.rows[0].description,
             class_link: (has("classLink") || has("class_link")) ? patch.classLink : existing.rows[0].class_link,
-            reason: has("reason") ? patch.reason : existing.rows[0].reason,
+            reason: (has("reason") || has("message")) ? patch.reason : existing.rows[0].reason,
             chat_messages: useChat ? patch.chatMessages : (existing.rows[0].chat_messages || []),
             resources: useResources ? patch.resources : (existing.rows[0].resources || []),
         };
+
+        if (merged.status === "pending" || merged.status === "declined") {
+            merged.start_time = null;
+            merged.end_time = null;
+        }
 
         const upd = await pool.query(
             "UPDATE sessions SET student_id=$2, tutor_id=$3, student_name=$4, tutor_name=$5, focus=$6, profile_pic=$7, status=$8, start_time=$9, end_time=$10, duration=$11, progress=$12, report_id=$13, description=$14, class_link=$15, reason=$16, chat_messages=$17::jsonb, resources=$18::text[] WHERE id=$1 RETURNING *",

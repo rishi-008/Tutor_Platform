@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import PendingStudentConnectionRequestModal from '../../components/PendingStudentConnectionRequestModal';
 import SinglePendingStudentConnectionRequestModal from './SinglePendingStudentConnectionRequestModal';
 
-function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressCourses, pendingCourses, declinedCourses }) {
+function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressCourses, pendingCourses, declinedCourses, refreshCourses }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSingleStudentPendingCourseRequestDecisionModalOpen, setIsSingleStudentPendingCourseRequestDecisionModalOpen] = useState(false);
     const [isTutorCourseSessionsCourseModalOpen, setIsTutorCourseSessionsCourseModalOpen] = useState(false);
@@ -130,7 +130,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
 {isSingleStudentPendingCourseRequestDecisionModalOpen && (
 <SinglePendingStudentConnectionRequestModal session={
     selectedPendingCourseForTutorDecision
-} isOpen={setIsSingleStudentPendingCourseRequestDecisionModalOpen}/>
+} isOpen={setIsSingleStudentPendingCourseRequestDecisionModalOpen} onDecision={refreshCourses}/>
     )}
 {/* {isModalOpen && (
                 <div className="modalOverlay">

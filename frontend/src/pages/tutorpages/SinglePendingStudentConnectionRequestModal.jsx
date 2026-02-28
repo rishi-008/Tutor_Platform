@@ -22,18 +22,34 @@ function SinglePendingStudentConnectionRequestModal(props) {
         />
 
         <div className="button-container"> 
-          <button id="acceptButton" onClick={() => approveSession(props.session)}>Approve</button>
-          <button id="denyButton" onClick={() => {
+          <button
+            id="acceptButton"
+            onClick={async () => {
+              await approveSession(props.session);
+              if (typeof props.onDecision === "function") {
+                await props.onDecision();
+              }
+              props.isOpen(false);
+            }}
+          >
+            Approve
+          </button>
+          <button id="denyButton" onClick={async () => {
             const session = {
               id: props.session.id,
               tutor: props.session.tutor,
-              tutorId: props.session.tutorid,
+              tutorId: props.session.tutorId ?? props.session.tutorid,
               student: props.session.student,
               studentId: props.session.studentId,
-              status: 'pending',
+              status: 'declined',
               reason: reasonForDeclining
           };
-            declineSession(session)}}>Deny</button>
+            await declineSession(session);
+            if (typeof props.onDecision === "function") {
+              await props.onDecision();
+            }
+            props.isOpen(false);
+          }}>Deny</button>
           <button id="closeButton" onClick={() => props.isOpen(false)}> Close </button>
         </div>
         

@@ -74,6 +74,21 @@ function UserDashboard() {
     const isTutor = location.state?.isTutor;
     console.log('User: ', user);
 
+    const refreshCourses = async () => {
+        const active = await getActiveSessions(user.student.name);
+        const canceled = await getCanceledSessions(user.student.name);
+        const pending = await getPendingSessions(user.student.name);
+        setDeclinedCourses(canceled);
+        setPendingCourses(pending);
+        setInProgressCourses(active);
+    };
+
+    const refreshAll = async () => {
+        await refreshCourses();
+        const n = await getNotifications(user.id, isTutor);
+        setNotifications(n);
+    };
+
     React.useEffect(() => {
         async function fetchData() {
             const active = await getActiveSessions(user.student.name);
@@ -86,6 +101,12 @@ function UserDashboard() {
             setNotifications(n);
         }
         fetchData();
+
+        const interval = setInterval(() => {
+            refreshAll().catch(() => {});
+        }, 3000);
+
+        return () => clearInterval(interval);
     }, []);
 
 

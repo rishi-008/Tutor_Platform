@@ -75,6 +75,21 @@ function UserDashboard() {
     const isTutor = location.state?.isTutor;
     // console.log('User: ', user.tutor.name);
 
+    const refreshCourses = async () => {
+        const active = await getActiveTutorSessions(user.tutor.name);
+        const canceled = await getCanceledTutorSessions(user.tutor.name);
+        const pending = await getPendingTutorSessions(user.tutor.name);
+        setDeclinedCourses(canceled);
+        setPendingCourses(pending);
+        setInProgressCourses(active);
+    };
+
+    const refreshAll = async () => {
+        await refreshCourses();
+        const n = await getNotifications(user.id, user.tutor);
+        setNotifications(n);
+    };
+
     React.useEffect(() => {
         async function fetchData() {
             const active = await getActiveTutorSessions(user.tutor.name);
@@ -91,6 +106,12 @@ function UserDashboard() {
             // setTutorInfo(latestTutorInfo);
         }
         fetchData();
+
+        const interval = setInterval(() => {
+            refreshAll().catch(() => {});
+        }, 3000);
+
+        return () => clearInterval(interval);
     }, []);
 
 
@@ -110,7 +131,7 @@ function UserDashboard() {
             case 'notifications':
                 return <StudentNotificationsPage notifications={notifications} />;
             case 'myCourses':
-                return <TutorMyCoursesPage setSelectedContent={setSelectedContent} setSelectedCourse={setSelectedCourse} inProgressCourses={inProgressCourses} pendingCourses={pendingCourses} declinedCourses={declinedCourses} />;
+                return <TutorMyCoursesPage setSelectedContent={setSelectedContent} setSelectedCourse={setSelectedCourse} inProgressCourses={inProgressCourses} pendingCourses={pendingCourses} declinedCourses={declinedCourses} refreshCourses={refreshCourses} />;
             case 'course':
                 return <TutorCoursePage course={selectedCourse} setSelectedContent={setSelectedContent} />;
             case 'settings':

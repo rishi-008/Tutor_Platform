@@ -3,7 +3,7 @@ import { sendChat, getChat, endSession } from '../../controllers/SessionControll
 
 function StudentCoursePage({ course, setSelectedContent }) {
     const [chatInput, setChatInput] = useState('');
-    const [chatOutput, setChatOutput] = useState(course.chatMessages);
+    const [chatOutput, setChatOutput] = useState(course?.chatMessages ?? []);
 
     const handleChatInputChange = (e) => {
         setChatInput(e.target.value);
@@ -11,7 +11,12 @@ function StudentCoursePage({ course, setSelectedContent }) {
 
     const handleSendChat = async () => {
         if (chatInput.trim()) {
-            await sendChat(course.id, "student", chatInput);
+            const updatedChat = await sendChat(course.id, "student", chatInput);
+            if (Array.isArray(updatedChat)) {
+                setChatOutput(updatedChat);
+            } else {
+                setChatOutput((prev) => [...(Array.isArray(prev) ? prev : []), { sender: "student", message: chatInput }]);
+            }
             setChatInput('');
         }
     };
@@ -24,12 +29,14 @@ function StudentCoursePage({ course, setSelectedContent }) {
     };
 
     React.useEffect(() => {
+        setChatOutput(course?.chatMessages ?? []);
         async function fetchData() {
+            if (!course?.id) return;
             const chat = await getChat(course.id);
             setChatOutput(chat);
         }
         fetchData();
-    }, [course]);
+    }, [course?.id]);
 
     React.useEffect(() => {
         const interval = setInterval(async () => {
@@ -92,7 +99,7 @@ function StudentCoursePage({ course, setSelectedContent }) {
                     <div className="chatContainer">
                         <h3>Chat</h3>
                         <div className="chatMessages">
-                            {course.chatMessages && course.chatMessages.length > 0 ? (
+                            {Array.isArray(chatOutput) && chatOutput.length > 0 ? (
                                 chatOutput.map((msg, index) => (
                                     <p key={index}>
                                         <strong>{msg.sender === 'student' ? course.student : course.tutor}:</strong> {msg.message}

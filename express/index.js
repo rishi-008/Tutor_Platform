@@ -795,10 +795,12 @@ const parseSessionBodyToDb = (body) => {
     const profilePic = b.profilePic ?? b.profile_pic ?? null;
     const status = b.status ?? null;
 
-    // Only set start/end times once accepted (active/completed). Pending/declined should not set them.
+    // Only set times once accepted. Pending/declined should not set them.
+    // Active sessions: set start_time, but DO NOT set end_time until the course is ended.
     const shouldHaveTimes = status !== "pending" && status !== "declined";
     const startTime = shouldHaveTimes ? coerceTimestampOrNull(b.startTime ?? b.start_time) : null;
-    const endTime = shouldHaveTimes ? coerceTimestampOrNull(b.endTime ?? b.end_time) : null;
+    const endTime =
+        shouldHaveTimes && status !== "active" ? coerceTimestampOrNull(b.endTime ?? b.end_time) : null;
 
     const duration = toNumberOrNull(b.duration);
     const progress = toNumberOrNull(b.progress);
@@ -949,11 +951,19 @@ app.delete(
             return res.status(400).json({ message: "Invalid id" });
         }
 
-        const del = await pool.query("DELETE FROM sessions WHERE id = $1 RETURNING id", [id]);
-        if (del.rowCount === 0) {
+        // End course: do not delete. Mark completed and set end_time.
+        const upd = await pool.query(
+            "UPDATE sessions SET status = 'completed', end_time = NOW() WHERE id = $1 RETURNING *",
+            [id]
+        );
+        if (upd.rowCount === 0) {
             return res.status(404).json({ message: "Item not found" });
         }
-        return res.json({ message: `Item with ID ${id} deleted` });
+
+        let dto = sessionRowToDto(upd.rows[0]);
+        const hydrated = await hydrateResourceNamesForSessions([dto]);
+        dto = hydrated[0];
+        return res.json(dto);
     })
 );
 
@@ -1032,6 +1042,11 @@ app.post(
 const insertSession = async (explicitId, body) => {
     const db = parseSessionBodyToDb(body);
     const id = explicitId ?? (Number.isInteger(Number(body?.id)) ? Number(body.id) : null);
+
+    if (db.status === "active") {
+        db.startTime = db.startTime ?? new Date().toISOString();
+        db.endTime = null;
+    }
 
     if (id !== null && !Number.isInteger(id)) {
         return { status: 400, json: { message: "Invalid id" } };
@@ -1186,6 +1201,12 @@ app.post(
 
         if (merged.status === "pending" || merged.status === "declined") {
             merged.start_time = null;
+            merged.end_time = null;
+        }
+
+        // When accepting a connection request (active), keep/set start_time but force end_time NULL.
+        if (merged.status === "active") {
+            merged.start_time = merged.start_time ?? new Date().toISOString();
             merged.end_time = null;
         }
 

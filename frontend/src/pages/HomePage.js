@@ -24,7 +24,7 @@ function HomePage() {
   return (
     <div className="HomePage">
       <header className="header">
-    <h1>Blue Zelephant</h1>
+    <h1>Tutor Marketplace</h1>
     <div className="header-buttons">
       <Link to="/login" className="button">Login</Link>
       <Link to="/register" className="button">Try for Free</Link>
@@ -32,7 +32,7 @@ function HomePage() {
     </div>
   </header>
   <div className="banner">
-    <h2>Be the change you want to see in yourself. Blue Zelephant.</h2>
+    <h2>Be the change you want to see in yourself.</h2>
   </div>
   <div className="features">
     <div className="feature-item">

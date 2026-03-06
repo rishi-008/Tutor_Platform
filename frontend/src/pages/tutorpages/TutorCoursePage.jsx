@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { sendChat, getChat, endSession } from '../../controllers/SessionController';
+import AiSessionPackModal from '../../components/AiSessionPackModal';
 
 function TutorCoursePage({ course, setSelectedContent }) {
     const [chatInput, setChatInput] = useState('');
     const [chatOutput, setChatOutput] = useState(course?.chatMessages ?? []);
+    const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
     const handleChatInputChange = (e) => {
         setChatInput(e.target.value);
@@ -61,6 +63,9 @@ function TutorCoursePage({ course, setSelectedContent }) {
                 </button>
                 {/* Course Actions */}
                 <div className="courseActions">
+                    <button className="aiButton" onClick={() => setIsAiModalOpen(true)}>
+                        Generate Session Pack
+                    </button>
                     <button className="endButton" onClick={handleEndCourse}>End Course</button>
                 </div>
             </div>
@@ -145,6 +150,13 @@ function TutorCoursePage({ course, setSelectedContent }) {
                     </div>
                 </div>
             </div>
+
+            <AiSessionPackModal
+                isOpen={isAiModalOpen}
+                onClose={() => setIsAiModalOpen(false)}
+                courseId={course?.id}
+                audience="tutor"
+            />
 
             <style jsx>{`
                 /* General Layout */
@@ -298,6 +310,7 @@ function TutorCoursePage({ course, setSelectedContent }) {
                 }
 
                 .rateButton,
+                .aiButton,
                 .endButton {
                     background: #007bff;
                     color: white;

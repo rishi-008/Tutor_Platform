@@ -229,6 +229,54 @@ app.get(
     })
 );
 
+app.post(
+    "/api/ai/session-pack",
+    asyncHandler(async (req, res) => {
+        const { sessionId, audience } = req.body || {};
+
+        // Mock data only (no LLM calls yet). Keep the shape stable so the UI can be built now.
+        const pack = {
+            sessionId: sessionId ?? null,
+            audience: audience === "tutor" || audience === "student" ? audience : "student",
+            summary:
+                "Covered key concepts, clarified confusion points, and practiced applying them with examples.",
+            actionItems: [
+                "Review today’s notes and rewrite them in your own words.",
+                "Do 3 practice questions and note where you got stuck.",
+                "Bring 1 follow-up question to the next session.",
+            ],
+            misconceptions: [
+                "Mixing up definitions vs. applications.",
+                "Skipping units/edge cases when solving problems.",
+            ],
+            quiz: [
+                {
+                    question: "In 1–2 sentences, explain the main concept practiced today.",
+                    answer:
+                        "A concise explanation that defines the concept and states when to use it.",
+                    hint: "Start with a definition, then add a simple example use-case.",
+                },
+                {
+                    question:
+                        "What’s one common mistake people make with this topic, and how do you avoid it?",
+                    answer:
+                        "They skip checking assumptions/units; avoid it by writing assumptions first and verifying at the end.",
+                    hint: "Think about what you tend to forget when rushing.",
+                },
+                {
+                    question:
+                        "Try a practice problem: outline the steps you would take to solve it.",
+                    answer:
+                        "Identify inputs/goal, choose the method, compute step-by-step, then verify the result.",
+                    hint: "Don’t compute first—plan first.",
+                },
+            ],
+        };
+
+        return res.json(pack);
+    })
+);
+
 
 app.get(
     "/api/health/user-email/:id",

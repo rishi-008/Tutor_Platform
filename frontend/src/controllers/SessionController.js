@@ -158,6 +158,22 @@ const endSession = async (id) => {
     return data;
 }
 
+const getAiSessionPack = async ({ sessionId, audience }) => {
+    const response = await fetch(`/api/ai/session-pack`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sessionId, audience }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data?.message || `AI request failed (${response.status})`);
+    }
+    return data;
+}
+
 export {
     getActiveSessions,
     getPendingSessions,
@@ -175,4 +191,5 @@ export {
     getCanceledTutorSessions,
     approveSession,
     declineSession,
+    getAiSessionPack,
 };

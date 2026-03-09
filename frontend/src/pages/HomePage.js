@@ -32,7 +32,7 @@ function HomePage() {
     </div>
   </header>
   <div className="banner">
-    <h2>Be the change you want to see in yourself.</h2>
+    <h2>Find the right tutor, master any subject.</h2>
   </div>
   <div className="features">
     <div className="feature-item">

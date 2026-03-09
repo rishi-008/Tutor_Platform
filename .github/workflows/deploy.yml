@@ -1,0 +1,63 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (not strictly needed)
+        uses: actions/checkout@v4
+
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+
+      - name: Trust droplet host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.DO_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          DO_HOST: ${{ secrets.DO_HOST }}
+          DO_USER: ${{ secrets.DO_USER }}
+        run: |
+          set -euo pipefail
+
+          ssh -o StrictHostKeyChecking=yes "${DO_USER}@${DO_HOST}" << 'EOF'
+            set -euo pipefail
+
+            REPO_DIR="/root/Tutor_Platform"
+            WEB_ROOT="/var/www/tutor"
+
+            cd "$REPO_DIR"
+            git fetch --all
+            git reset --hard origin/master
+
+            # Backend (Express)
+            cd "$REPO_DIR/express"
+            npm install
+
+            # Frontend (React build)
+            cd "$REPO_DIR/frontend"
+            npm install
+            npm run build
+
+            # Deploy static build to nginx web root
+            rm -rf "${WEB_ROOT:?}"/*
+            cp -R build/* "$WEB_ROOT/"
+
+            # Reload services
+            systemctl restart tutor-platform
+            systemctl reload nginx
+          EOF

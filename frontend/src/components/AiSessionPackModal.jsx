@@ -56,7 +56,7 @@ function AiSessionPackModal({ isOpen, onClose, courseId, audience }) {
         >
             <div className="modalContent">
                 <div className="headerRow">
-                    <h2>Session Pack</h2>
+                    <h2>Session Pack ({normalizedAudience})</h2>
                     <button className="closeButton" onClick={onClose}>
                         Close
                     </button>

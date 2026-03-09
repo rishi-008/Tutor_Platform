@@ -234,43 +234,80 @@ app.post(
     asyncHandler(async (req, res) => {
         const { sessionId, audience } = req.body || {};
 
+        const normalizedAudience =
+            audience === "tutor" || audience === "student" ? audience : "student";
+
         // Mock data only (no LLM calls yet). Keep the shape stable so the UI can be built now.
         const pack = {
             sessionId: sessionId ?? null,
-            audience: audience === "tutor" || audience === "student" ? audience : "student",
+            audience: normalizedAudience,
             summary:
-                "Covered key concepts, clarified confusion points, and practiced applying them with examples.",
-            actionItems: [
-                "Review today’s notes and rewrite them in your own words.",
-                "Do 3 practice questions and note where you got stuck.",
-                "Bring 1 follow-up question to the next session.",
-            ],
-            misconceptions: [
-                "Mixing up definitions vs. applications.",
-                "Skipping units/edge cases when solving problems.",
-            ],
-            quiz: [
-                {
-                    question: "In 1–2 sentences, explain the main concept practiced today.",
-                    answer:
-                        "A concise explanation that defines the concept and states when to use it.",
-                    hint: "Start with a definition, then add a simple example use-case.",
-                },
-                {
-                    question:
-                        "What’s one common mistake people make with this topic, and how do you avoid it?",
-                    answer:
-                        "They skip checking assumptions/units; avoid it by writing assumptions first and verifying at the end.",
-                    hint: "Think about what you tend to forget when rushing.",
-                },
-                {
-                    question:
-                        "Try a practice problem: outline the steps you would take to solve it.",
-                    answer:
-                        "Identify inputs/goal, choose the method, compute step-by-step, then verify the result.",
-                    hint: "Don’t compute first—plan first.",
-                },
-            ],
+                normalizedAudience === "tutor"
+                    ? "Tutor view: recap of what was taught, where the student struggled, and suggested next lesson structure."
+                    : "Student view: recap of what you learned, key takeaways, and what to practice next.",
+            actionItems:
+                normalizedAudience === "tutor"
+                    ? [
+                          "Next session: start with a 3-minute review, then 2 guided problems, then 1 independent problem.",
+                          "Ask the student to verbalize the decision rule before solving.",
+                          "End with a quick check: 3-question mini-quiz to confirm retention.",
+                      ]
+                    : [
+                          "Review today’s notes and rewrite them in your own words.",
+                          "Do 3 practice questions and note where you got stuck.",
+                          "Bring 1 follow-up question to the next session.",
+                      ],
+            misconceptions:
+                normalizedAudience === "tutor"
+                    ? [
+                          "Student may memorize steps without understanding when to apply them.",
+                          "Student may skip edge-case checks; prompt them to write assumptions explicitly.",
+                      ]
+                    : [
+                          "Mixing up definitions vs. applications.",
+                          "Skipping units/edge cases when solving problems.",
+                      ],
+            quiz:
+                normalizedAudience === "tutor"
+                    ? [
+                          {
+                              question:
+                                  "Tutor prompt: ask the student to explain the concept back to you in 60 seconds.",
+                              answer:
+                                  "Look for a definition + when-to-use + a simple example. Correct gently if they skip the ‘when’.",
+                              hint: "If they get stuck, ask: ‘What’s the goal of this method?’",
+                          },
+                          {
+                              question:
+                                  "Tutor check: what misconception is most likely here, and what question reveals it?",
+                              answer:
+                                  "Misconception: applying the method in the wrong scenario. Reveal it by asking for the condition that triggers the method.",
+                              hint: "Ask them to state the decision rule before computing.",
+                          },
+                      ]
+                    : [
+                          {
+                              question:
+                                  "In 1–2 sentences, explain the main concept practiced today.",
+                              answer:
+                                  "A concise explanation that defines the concept and states when to use it.",
+                              hint: "Start with a definition, then add a simple example use-case.",
+                          },
+                          {
+                              question:
+                                  "What’s one common mistake people make with this topic, and how do you avoid it?",
+                              answer:
+                                  "They skip checking assumptions/units; avoid it by writing assumptions first and verifying at the end.",
+                              hint: "Think about what you tend to forget when rushing.",
+                          },
+                          {
+                              question:
+                                  "Try a practice problem: outline the steps you would take to solve it.",
+                              answer:
+                                  "Identify inputs/goal, choose the method, compute step-by-step, then verify the result.",
+                              hint: "Don’t compute first—plan first.",
+                          },
+                      ],
         };
 
         return res.json(pack);

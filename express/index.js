@@ -22,6 +22,14 @@ const universityFilePath = path.join(__dirname, "api/universities.json");
 
 const { Pool } = require("pg");
 
+let OpenAI = null;
+try {
+    OpenAI = require("openai");
+} catch (e) {
+    // Optional dependency until installed. Endpoint will fall back to mock.
+    OpenAI = null;
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // If you use sslmode=require or DO-managed DB, you may need ssl:
@@ -234,83 +242,213 @@ app.post(
     asyncHandler(async (req, res) => {
         const { sessionId, audience } = req.body || {};
 
-        const normalizedAudience =
-            audience === "tutor" || audience === "student" ? audience : "student";
+        const normalizeAudience = (value) =>
+            value === "tutor" || value === "student" ? value : "student";
 
-        // Mock data only (no LLM calls yet). Keep the shape stable so the UI can be built now.
-        const pack = {
-            sessionId: sessionId ?? null,
-            audience: normalizedAudience,
-            summary:
-                normalizedAudience === "tutor"
-                    ? "Tutor view: recap of what was taught, where the student struggled, and suggested next lesson structure."
-                    : "Student view: recap of what you learned, key takeaways, and what to practice next.",
-            actionItems:
-                normalizedAudience === "tutor"
-                    ? [
-                          "Next session: start with a 3-minute review, then 2 guided problems, then 1 independent problem.",
-                          "Ask the student to verbalize the decision rule before solving.",
-                          "End with a quick check: 3-question mini-quiz to confirm retention.",
-                      ]
-                    : [
-                          "Review today’s notes and rewrite them in your own words.",
-                          "Do 3 practice questions and note where you got stuck.",
-                          "Bring 1 follow-up question to the next session.",
-                      ],
-            misconceptions:
-                normalizedAudience === "tutor"
-                    ? [
-                          "Student may memorize steps without understanding when to apply them.",
-                          "Student may skip edge-case checks; prompt them to write assumptions explicitly.",
-                      ]
-                    : [
-                          "Mixing up definitions vs. applications.",
-                          "Skipping units/edge cases when solving problems.",
-                      ],
-            quiz:
-                normalizedAudience === "tutor"
-                    ? [
-                          {
-                              question:
-                                  "Tutor prompt: ask the student to explain the concept back to you in 60 seconds.",
-                              answer:
-                                  "Look for a definition + when-to-use + a simple example. Correct gently if they skip the ‘when’.",
-                              hint: "If they get stuck, ask: ‘What’s the goal of this method?’",
-                          },
-                          {
-                              question:
-                                  "Tutor check: what misconception is most likely here, and what question reveals it?",
-                              answer:
-                                  "Misconception: applying the method in the wrong scenario. Reveal it by asking for the condition that triggers the method.",
-                              hint: "Ask them to state the decision rule before computing.",
-                          },
-                      ]
-                    : [
-                          {
-                              question:
-                                  "In 1–2 sentences, explain the main concept practiced today.",
-                              answer:
-                                  "A concise explanation that defines the concept and states when to use it.",
-                              hint: "Start with a definition, then add a simple example use-case.",
-                          },
-                          {
-                              question:
-                                  "What’s one common mistake people make with this topic, and how do you avoid it?",
-                              answer:
-                                  "They skip checking assumptions/units; avoid it by writing assumptions first and verifying at the end.",
-                              hint: "Think about what you tend to forget when rushing.",
-                          },
-                          {
-                              question:
-                                  "Try a practice problem: outline the steps you would take to solve it.",
-                              answer:
-                                  "Identify inputs/goal, choose the method, compute step-by-step, then verify the result.",
-                              hint: "Don’t compute first—plan first.",
-                          },
-                      ],
+        const buildMockPack = ({ sessionId, audience }) => {
+            const normalizedAudience = normalizeAudience(audience);
+            return {
+                sessionId: sessionId ?? null,
+                audience: normalizedAudience,
+                summary:
+                    normalizedAudience === "tutor"
+                        ? "Tutor view: recap of what was taught, where the student struggled, and suggested next lesson structure."
+                        : "Student view: recap of what you learned, key takeaways, and what to practice next.",
+                actionItems:
+                    normalizedAudience === "tutor"
+                        ? [
+                              "Next session: start with a 3-minute review, then 2 guided problems, then 1 independent problem.",
+                              "Ask the student to verbalize the decision rule before solving.",
+                              "End with a quick check: 3-question mini-quiz to confirm retention.",
+                          ]
+                        : [
+                              "Review today’s notes and rewrite them in your own words.",
+                              "Do 3 practice questions and note where you got stuck.",
+                              "Bring 1 follow-up question to the next session.",
+                          ],
+                misconceptions:
+                    normalizedAudience === "tutor"
+                        ? [
+                              "Student may memorize steps without understanding when to apply them.",
+                              "Student may skip edge-case checks; prompt them to write assumptions explicitly.",
+                          ]
+                        : [
+                              "Mixing up definitions vs. applications.",
+                              "Skipping units/edge cases when solving problems.",
+                          ],
+                quiz:
+                    normalizedAudience === "tutor"
+                        ? [
+                              {
+                                  question:
+                                      "Tutor prompt: ask the student to explain the concept back to you in 60 seconds.",
+                                  answer:
+                                      "Look for a definition + when-to-use + a simple example. Correct gently if they skip the ‘when’.",
+                                  hint: "If they get stuck, ask: ‘What’s the goal of this method?’",
+                              },
+                              {
+                                  question:
+                                      "Tutor check: what misconception is most likely here, and what question reveals it?",
+                                  answer:
+                                      "Misconception: applying the method in the wrong scenario. Reveal it by asking for the condition that triggers the method.",
+                                  hint: "Ask them to state the decision rule before computing.",
+                              },
+                          ]
+                        : [
+                              {
+                                  question:
+                                      "In 1–2 sentences, explain the main concept practiced today.",
+                                  answer:
+                                      "A concise explanation that defines the concept and states when to use it.",
+                                  hint: "Start with a definition, then add a simple example use-case.",
+                              },
+                              {
+                                  question:
+                                      "What’s one common mistake people make with this topic, and how do you avoid it?",
+                                  answer:
+                                      "They skip checking assumptions/units; avoid it by writing assumptions first and verifying at the end.",
+                                  hint: "Think about what you tend to forget when rushing.",
+                              },
+                              {
+                                  question:
+                                      "Try a practice problem: outline the steps you would take to solve it.",
+                                  answer:
+                                      "Identify inputs/goal, choose the method, compute step-by-step, then verify the result.",
+                                  hint: "Don’t compute first—plan first.",
+                              },
+                          ],
+            };
         };
 
-        return res.json(pack);
+        const normalizedAudience = normalizeAudience(audience);
+        const numericSessionId = Number(sessionId);
+        if (!Number.isInteger(numericSessionId)) {
+            return res.status(400).json({ message: "Invalid sessionId" });
+        }
+
+        const openAiKey = (process.env.OPENAI_API_KEY || "").trim();
+        const shouldUseOpenAi = Boolean(openAiKey) && Boolean(OpenAI);
+        if (!shouldUseOpenAi) {
+            return res.json(buildMockPack({ sessionId: numericSessionId, audience: normalizedAudience }));
+        }
+
+        const sessionResult = await pool.query(
+            "SELECT id, focus, description, student_name, tutor_name, chat_messages FROM sessions WHERE id = $1",
+            [numericSessionId]
+        );
+        if (sessionResult.rowCount === 0) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        const row = sessionResult.rows[0];
+        const focus = typeof row.focus === "string" ? row.focus : "";
+        const description = typeof row.description === "string" ? row.description : "";
+        const studentName = typeof row.student_name === "string" ? row.student_name : "Student";
+        const tutorName = typeof row.tutor_name === "string" ? row.tutor_name : "Tutor";
+        const chatMessages = Array.isArray(row.chat_messages)
+            ? row.chat_messages
+            : row.chat_messages || [];
+
+        const buildTranscript = (messages, { maxMessages = 80, maxChars = 12000 } = {}) => {
+            const safe = Array.isArray(messages) ? messages : [];
+            const slice = safe.slice(Math.max(0, safe.length - maxMessages));
+            const lines = slice
+                .map((m) => {
+                    const sender = (m && typeof m.sender === "string" ? m.sender : "").toLowerCase();
+                    const raw = m && typeof m.message === "string" ? m.message : "";
+                    const text = raw.replace(/\s+/g, " ").trim();
+                    if (!text) return null;
+                    const label = sender === "tutor" ? tutorName : sender === "student" ? studentName : "User";
+                    return `${label}: ${text}`;
+                })
+                .filter(Boolean);
+
+            let transcript = lines.join("\n");
+            if (transcript.length > maxChars) {
+                transcript = transcript.slice(transcript.length - maxChars);
+            }
+            return transcript;
+        };
+
+        const transcript = buildTranscript(chatMessages);
+
+        const system =
+            "You generate a tutoring 'Session Pack' as STRICT JSON only. No markdown. No backticks. Output must be valid JSON.";
+
+        const user =
+            `Audience: ${normalizedAudience}.\n` +
+            `Session focus: ${focus || "(unknown)"}.\n` +
+            `Session description: ${description || "(none)"}.\n\n` +
+            "Chat transcript (may be truncated):\n" +
+            (transcript || "(no chat messages)") +
+            "\n\n" +
+            "Return this exact JSON shape:\n" +
+            "{\n" +
+            "  \"summary\": string,\n" +
+            "  \"actionItems\": string[],\n" +
+            "  \"misconceptions\": string[],\n" +
+            "  \"quiz\": [{\"question\": string, \"answer\": string, \"hint\": string}]\n" +
+            "}\n" +
+            "Make it grounded in the transcript; don't invent names/events not present.";
+
+        const client = new OpenAI({ apiKey: openAiKey });
+        const model = (process.env.OPENAI_MODEL || "gpt-4o-mini").trim();
+
+        try {
+            const completion = await client.chat.completions.create({
+                model,
+                temperature: 0.2,
+                messages: [
+                    { role: "system", content: system },
+                    { role: "user", content: user },
+                ],
+            });
+
+            const content = completion?.choices?.[0]?.message?.content || "";
+
+            const stripCodeFences = (text) => {
+                const t = String(text || "").trim();
+                if (t.startsWith("```")) {
+                    return t.replace(/^```[a-zA-Z]*\n?/, "").replace(/```\s*$/, "").trim();
+                }
+                return t;
+            };
+
+            const parsed = JSON.parse(stripCodeFences(content));
+            const isStringArray = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
+            const isQuizArray = (v) =>
+                Array.isArray(v) &&
+                v.every(
+                    (q) =>
+                        q &&
+                        typeof q.question === "string" &&
+                        typeof q.answer === "string" &&
+                        typeof q.hint === "string"
+                );
+
+            if (
+                !parsed ||
+                typeof parsed.summary !== "string" ||
+                !isStringArray(parsed.actionItems) ||
+                !isStringArray(parsed.misconceptions) ||
+                !isQuizArray(parsed.quiz)
+            ) {
+                console.warn("[ai] Invalid AI response shape; falling back to mock");
+                return res.json(buildMockPack({ sessionId: numericSessionId, audience: normalizedAudience }));
+            }
+
+            return res.json({
+                sessionId: numericSessionId,
+                audience: normalizedAudience,
+                summary: parsed.summary,
+                actionItems: parsed.actionItems,
+                misconceptions: parsed.misconceptions,
+                quiz: parsed.quiz,
+            });
+        } catch (err) {
+            console.error("[ai] generation failed; falling back to mock:", err?.message || err);
+            return res.json(buildMockPack({ sessionId: numericSessionId, audience: normalizedAudience }));
+        }
     })
 );
 

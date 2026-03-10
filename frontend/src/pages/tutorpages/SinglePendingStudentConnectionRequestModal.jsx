@@ -9,6 +9,8 @@ function SinglePendingStudentConnectionRequestModal(props) {
   console.log("this is the session", props.session);
 
   const [reasonForDeclining, setReasonForDeclining] = useState('');
+  const [declineError, setDeclineError] = useState('');
+  const trimmedDeclineReason = String(reasonForDeclining || '').trim();
   return (
     <div className="modalOverlay">
       <div className="modalContent">
@@ -17,9 +19,14 @@ function SinglePendingStudentConnectionRequestModal(props) {
         <p>Connection Message: {props.session.message}</p>
         <textarea
           value={reasonForDeclining}
-          onChange={(e) => setReasonForDeclining(e.target.value)}
+          onChange={(e) => {
+            setReasonForDeclining(e.target.value);
+            if (declineError) setDeclineError('');
+          }}
           placeholder="Reason for declining"
         />
+
+        {declineError ? <p className="errorText">{declineError}</p> : null}
 
         <div className="button-container"> 
           <button
@@ -34,7 +41,14 @@ function SinglePendingStudentConnectionRequestModal(props) {
           >
             Approve
           </button>
-          <button id="denyButton" onClick={async () => {
+          <button
+            id="denyButton"
+            disabled={!trimmedDeclineReason}
+            onClick={async () => {
+            if (!trimmedDeclineReason) {
+              setDeclineError('Please write a reason before declining.');
+              return;
+            }
             const session = {
               id: props.session.id,
               tutor: props.session.tutor,
@@ -42,7 +56,7 @@ function SinglePendingStudentConnectionRequestModal(props) {
               student: props.session.student,
               studentId: props.session.studentId,
               status: 'declined',
-              reason: reasonForDeclining
+              reason: trimmedDeclineReason
           };
             await declineSession(session);
             if (typeof props.onDecision === "function") {
@@ -73,6 +87,12 @@ function SinglePendingStudentConnectionRequestModal(props) {
           padding: 10px;
           border-radius: 5px;
           border: 1px solid #ccc
+        }
+
+        .errorText {
+          color: red;
+          margin: 8px 0 0;
+          font-size: 14px;
         }
         .modalContent {
           background: white;
@@ -112,6 +132,11 @@ function SinglePendingStudentConnectionRequestModal(props) {
 
         #denyButton {
           background: red;
+        }
+
+        #denyButton:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         #acceptButton {
           background: green;

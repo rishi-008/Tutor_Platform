@@ -1446,6 +1446,18 @@ app.post(
             resources: useResources ? patch.resources : (existing.rows[0].resources || []),
         };
 
+        // Enforce a rejection message when declining a pending connection request.
+        const previousStatus = existing.rows[0].status;
+        if (previousStatus === "pending" && merged.status === "declined") {
+            const reasonText = typeof merged.reason === "string" ? merged.reason.trim() : "";
+            if (!reasonText) {
+                return res.status(400).json({
+                    message: "A reason is required to decline a connection request.",
+                });
+            }
+            merged.reason = reasonText;
+        }
+
         if (merged.status === "pending" || merged.status === "declined") {
             merged.start_time = null;
             merged.end_time = null;

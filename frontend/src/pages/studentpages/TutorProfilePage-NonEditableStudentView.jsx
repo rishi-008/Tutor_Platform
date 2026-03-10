@@ -83,8 +83,12 @@ const TutorProfilePage = () => {
                             <span className="close" onClick={handleModalToggle}>&times;</span>
                             <h2>Send Connection Request</h2>
                             <div className="input-container">
-                                <input className="message-input" onChange={handleMessageUpdate}></input>
-                                <span className="placeholder-text">Message to tutor</span>
+                                <textarea
+                                    className="message-input"
+                                    value={message}
+                                    onChange={handleMessageUpdate}
+                                    placeholder="Message to tutor"
+                                />
                             </div>
                             <button className="btn-large btn-center" onClick={submitConnectionRequest}>Send Request</button>
                         </div>
@@ -110,24 +114,19 @@ body, html {
 }
 
 .message-input {
-    height: 300px; /* Fixed width for the input */
+    width: 100%;
+    height: 300px;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
-    position: relative;
+    box-sizing: border-box;
+    resize: none;
 }
 
 .input-container {
     position: relative;
 }
 
-.placeholder-text {
-    position: absolute;
-    top: 5px;
-    left: 10px;
-    color: #aaa;
-    pointer-events: none;
-}
 
 .back-button {
    display: inline-block;

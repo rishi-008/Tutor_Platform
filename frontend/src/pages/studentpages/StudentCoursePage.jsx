@@ -27,7 +27,14 @@ function StudentCoursePage({ course, setSelectedContent }) {
     };
 
     const handleEndCourse = async () => {
-        await endSession(course.id);
+        if (!course?.id) return;
+        try {
+            await endSession(course.id);
+        } finally {
+            if (typeof setSelectedContent === 'function') {
+                setSelectedContent('myCourses');
+            }
+        }
     };
 
     React.useEffect(() => {

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import TutorCard from '../../components/TutorCard';
 import { tutorListBasedOnQuery } from "../../controllers/AccountController";
 
 function TutorSearchPage() {
     const location = useLocation();
-    const user = location.state.user;
+    const navigate = useNavigate();
+    const user = location.state?.user;
     // Safely retrieve the state and fallback to an empty array if undefined
     const tutors = (location.state && location.state.searchQueryResult) || [{name: 'John Doe', profilePicture: '', description: 'Expert in Math' }];
     const searchedQuery = (location.state && location.state.searchedQuery) || '';
@@ -13,6 +14,14 @@ function TutorSearchPage() {
 
     const [searchQuery, setSearchQuery] = useState(searchedQuery);
     const [filteredTutors, setFilteredTutors] = useState(tutors);
+
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            navigate(-1);
+            return;
+        }
+        navigate('/userPortal');
+    };
 
     // Handle search input change
     const handleSearch = async (e) => {
@@ -30,7 +39,7 @@ function TutorSearchPage() {
     return (
         <div className="tutorSearchPage">
             <div className="header">
-                <button className="backButton">
+                <button className="backButton" onClick={handleBack} aria-label="Back">
                     &larr; 
                 </button>
             </div>

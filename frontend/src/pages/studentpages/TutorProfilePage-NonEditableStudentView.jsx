@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { putPendingSession } from '../../controllers/SessionController';
 
 const TutorProfilePage = () => {
 
     const location = useLocation();
+    const navigate = useNavigate();
     const state = location.state || {};
     const tutorD = state.tutor || { tutor: {} }; // Ensure tutor is an object if undefined
     const tutor = tutorD.tutor;
@@ -16,6 +17,15 @@ const TutorProfilePage = () => {
 
     const handleModalToggle = () => {
         setIsModalOpen(!isModalOpen);
+    };
+
+    const handleBack = () => {
+        // Go back to last visited page when possible.
+        if (window.history.length > 1) {
+            navigate(-1);
+            return;
+        }
+        navigate('/userPortal');
     };
 
     const handleMessageUpdate = (event) => {
@@ -43,6 +53,8 @@ const TutorProfilePage = () => {
     return (
         <>
             <div className="profile-container">
+
+                <button className="backButton" onClick={handleBack} aria-label="Back">&larr;</button>
 
                 <div className="banner">Banner</div>
 
@@ -128,19 +140,19 @@ body, html {
 }
 
 
-.back-button {
-   display: inline-block;
-   text-align: left;
-   width: 70px;
-    padding: 10px 20px;
-    background-color: grey;
-    color: #fff;
+.backButton {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 1.5rem;
     border: none;
-    border-radius: 5px;
+    background: none;
     cursor: pointer;
+    z-index: 2;
 }
 
 .profile-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100vh; /* Full viewport height */

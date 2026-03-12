@@ -27,6 +27,7 @@
 
 .profileImageContainer {
     position: relative;
+    padding-top: 6px;
     margin-bottom: 20px;
     width: 100%;
 }
@@ -34,8 +35,12 @@
 .profileImage {
     width: 80px;
     height: 80px;
+    aspect-ratio: 1 / 1;
     border-radius: 50%;
+    display: block;
     margin: 0 auto;
+    object-fit: cover;
+    object-position: center;
 }
 
 .statusIndicator {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { updateTutorDescription, updateTutorCourses, getTutorById } from "../../controllers/AccountController";
+import { updateTutorDescription, updateTutorCourses, getTutorById, getBannerTypes, updateTutorBanner } from "../../controllers/AccountController";
 
 const TutorProfilePageEditable = (props) => {
     const [isEditingDescription, setIsEditingDescription] = useState(false);
@@ -9,6 +9,11 @@ const TutorProfilePageEditable = (props) => {
     const [newlyAddedCourses, setNewlyAddedCourses] = useState([]);
     const [tutorInfo, setTutorInfo] = useState({});
        const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
+    const defaultBannerUrl = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/banners/banner.png';
+
+    const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+    const [bannerTypes, setBannerTypes] = useState([]);
+    const [selectedBannerKey, setSelectedBannerKey] = useState('');
 
     React.useEffect(() => {
         async function fetchData() {
@@ -16,9 +21,32 @@ const TutorProfilePageEditable = (props) => {
             setTutorInfo(latestTutorInfo);
             setDescription(latestTutorInfo.tutor.description);
             setCourses(latestTutorInfo.tutor.courses);
+            setSelectedBannerKey(latestTutorInfo?.tutor?.banner_key || latestTutorInfo?.tutor?.bannerKey || 'banner');
         }
         fetchData();
-    }, []);
+    }, [props?.tutor?.id]);
+
+    const openBannerModal = async () => {
+        setIsBannerModalOpen(true);
+        try {
+            const types = await getBannerTypes();
+            setBannerTypes(types);
+        } catch (e) {
+            setBannerTypes([]);
+        }
+    };
+
+    const closeBannerModal = () => {
+        setIsBannerModalOpen(false);
+    };
+
+    const saveBannerSelection = async () => {
+        if (!selectedBannerKey) return;
+        await updateTutorBanner(props.tutor.id, selectedBannerKey);
+        const latestTutorInfo = await getTutorById(props.tutor.id);
+        setTutorInfo(latestTutorInfo);
+        closeBannerModal();
+    };
 
     const handleEditDescriptionClick = () => {
         setIsEditingDescription(true);
@@ -72,7 +100,19 @@ const TutorProfilePageEditable = (props) => {
     return (
         <>
             <div className="profile-container">
-                <div className="banner">Banner</div>
+                <div className="banner">
+                    <img
+                        className="banner-image"
+                        src={tutor?.banner_url || tutor?.bannerUrl || defaultBannerUrl}
+                        alt="Tutor banner"
+                        onError={(e) => {
+                            if (!e?.currentTarget) return;
+                            if (e.currentTarget.src === defaultBannerUrl) return;
+                            e.currentTarget.src = defaultBannerUrl;
+                        }}
+                    />
+                    <button className="banner-edit" onClick={openBannerModal}>Edit</button>
+                </div>
                 <div className="tutor-info">
                     <img
                         className="profile-pic"
@@ -134,6 +174,39 @@ const TutorProfilePageEditable = (props) => {
                     {!isEditingCourses && <button onClick={handleEditCoursesClick}>Edit</button>}
                 </div>
             </div>
+
+            {isBannerModalOpen && (
+                <div className="modalOverlay" role="dialog" aria-modal="true" aria-label="Select banner">
+                    <div className="modalContent">
+                        <div className="modalHeader">
+                            <h2>Select a banner</h2>
+                            <button className="modalClose" onClick={closeBannerModal} aria-label="Close">×</button>
+                        </div>
+
+                        <div className="bannerGrid">
+                            {(bannerTypes.length ? bannerTypes : [
+                                { key: 'banner', cdn_url: defaultBannerUrl },
+                                { key: 'banner2', cdn_url: 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/banners/banner2.png' },
+                            ]).map((b) => (
+                                <button
+                                    key={b.key}
+                                    type="button"
+                                    className={`bannerOption ${selectedBannerKey === b.key ? 'selected' : ''}`}
+                                    onClick={() => setSelectedBannerKey(b.key)}
+                                >
+                                    <img className="bannerPreview" src={b.cdn_url} alt={b.key} />
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="modalActions">
+                            <button className="modalButton" onClick={closeBannerModal}>Cancel</button>
+                            <button className="modalButton primary" onClick={saveBannerSelection} disabled={!selectedBannerKey}>Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style jsx>{`
                 body, html {
                     margin: 0;
@@ -151,10 +224,26 @@ const TutorProfilePageEditable = (props) => {
                 .banner {
                     background-color: #e0e0e0;
                     color: #666;
-                    text-align: center;
-                    padding: 50px;
-                    font-size: 20px;
-                    font-weight: bold;
+                    position: relative;
+                    height: 140px;
+                    overflow: hidden;
+                }
+                .banner-image {
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    object-fit: cover;
+                    object-position: center;
+                }
+                .banner-edit {
+                    position: absolute;
+                    top: 12px;
+                    right: 12px;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    border: 1px solid #ddd;
+                    background: white;
+                    cursor: pointer;
                 }
                 .tutor-info {
                     display: flex;
@@ -171,6 +260,85 @@ const TutorProfilePageEditable = (props) => {
                     aspect-ratio: 1 / 1;
                     object-fit: cover;
                     object-position: 50% 12%;
+                }
+
+                .modalOverlay {
+                    position: fixed;
+                    inset: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 24px;
+                    z-index: 1000;
+                }
+                .modalContent {
+                    width: min(720px, 100%);
+                    background: #fff;
+                    border-radius: 10px;
+                    padding: 16px;
+                }
+                .modalHeader {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 12px;
+                }
+                .modalHeader h2 {
+                    margin: 0;
+                    font-size: 18px;
+                }
+                .modalClose {
+                    border: none;
+                    background: transparent;
+                    cursor: pointer;
+                    font-size: 22px;
+                    line-height: 1;
+                }
+                .bannerGrid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 12px;
+                    margin: 12px 0;
+                }
+                .bannerOption {
+                    padding: 0;
+                    border: 2px solid #ddd;
+                    border-radius: 10px;
+                    overflow: hidden;
+                    background: #fff;
+                    cursor: pointer;
+                }
+                .bannerOption.selected {
+                    border-color: #007BFF;
+                }
+                .bannerPreview {
+                    width: 100%;
+                    height: 120px;
+                    display: block;
+                    object-fit: cover;
+                }
+                .modalActions {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    margin-top: 8px;
+                }
+                .modalButton {
+                    padding: 10px 14px;
+                    border-radius: 8px;
+                    border: 1px solid #ddd;
+                    background: white;
+                    cursor: pointer;
+                }
+                .modalButton.primary {
+                    background: #007BFF;
+                    color: white;
+                    border-color: #007BFF;
+                }
+                .modalButton:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
                 }
                 .info {
                     margin-left: 20px;

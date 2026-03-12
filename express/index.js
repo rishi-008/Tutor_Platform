@@ -57,11 +57,14 @@ const TUTOR_SELECT_COLUMNS = `
         t.phone,
         t.description,
         t.profile_pic,
+        t.banner_key,
+        bt.cdn_url AS banner_url,
         t.approved_courses,
         t.rating::float8 AS rating,
         t."costPerHour"::float8 AS "costPerHour"
     FROM tutors t
     JOIN users u ON u.id = t.user_id
+    LEFT JOIN banner_types bt ON bt.key = t.banner_key
     WHERE u.user_type = 'tutor'
 `;
 
@@ -103,11 +106,18 @@ const tutorRowToAccount = (row) => ({
         phone: row.phone,
         age: row.age,
         profile_pic: row.profile_pic,
+        banner_key: row.banner_key,
+        banner_url: row.banner_url,
     },
     isAdmin: row.is_admin,
     notifications: [],
     proofdoc: row.proof_doc,
     isApproved: row.is_approved,
+});
+
+const bannerTypeRowToDto = (row) => ({
+    key: row.key,
+    cdn_url: row.cdn_url,
 });
 
 const studentRowToAccount = (row) => ({
@@ -560,6 +570,15 @@ app.get(
     })
 );
 
+// Get all available banner types
+app.get(
+    "/api/banner-types",
+    asyncHandler(async (req, res) => {
+        const r = await pool.query("SELECT key, cdn_url FROM banner_types ORDER BY key ASC");
+        return res.json(r.rows.map(bannerTypeRowToDto));
+    })
+);
+
 app.get(
     "/api/tutor/:id",
     asyncHandler(async (req, res) => {
@@ -602,6 +621,7 @@ app.post(
         const phone = tutor.phone ?? null;
         const description = tutor.description ?? null;
         const profile_pic = tutor.profile_pic ?? tutor.profilePic ?? null;
+        const banner_key = tutor.banner_key ?? tutor.bannerKey ?? 'banner';
         const approved_courses = Array.isArray(tutor.courses) ? tutor.courses : [];
         const ratingRaw = tutor.rating ?? 0;
         const costRaw = tutor.costPerHour ?? tutor.cost_per_hour ?? tutor.cost ?? 0;
@@ -616,6 +636,9 @@ app.post(
         }
         if (typeof name !== "string" || name.trim() === "") {
             return res.status(400).json({ message: "Invalid tutor name" });
+        }
+        if (banner_key !== null && banner_key !== undefined && typeof banner_key !== 'string') {
+            return res.status(400).json({ message: "Invalid banner_key" });
         }
         if (!Array.isArray(approved_courses) || !approved_courses.every((c) => typeof c === "string")) {
             return res.status(400).json({ message: "Invalid courses" });
@@ -652,7 +675,7 @@ app.post(
             );
 
             await client.query(
-                "INSERT INTO tutors (user_id, name, age, birthday, language, education, phone, description, profile_pic, approved_courses, rating, \"costPerHour\") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12)",
+                "INSERT INTO tutors (user_id, name, age, birthday, language, education, phone, description, profile_pic, banner_key, approved_courses, rating, \"costPerHour\") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text[], $12, $13)",
                 [
                     createdUserId,
                     name,
@@ -663,6 +686,7 @@ app.post(
                     phone,
                     description,
                     profile_pic,
+                    banner_key,
                     approved_courses,
                     rating,
                     costPerHour,
@@ -690,6 +714,41 @@ app.post(
         } finally {
             client.release();
         }
+    })
+);
+
+// Update tutor banner selection
+app.put(
+    "/api/tutor/banner/:id",
+    asyncHandler(async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ message: "Invalid id" });
+        }
+
+        const body = req.body || {};
+        const banner_key = body.banner_key ?? body.bannerKey;
+        if (typeof banner_key !== 'string' || banner_key.trim() === '') {
+            return res.status(400).json({ message: "Invalid banner_key" });
+        }
+
+        const exists = await pool.query("SELECT 1 FROM banner_types WHERE key = $1", [banner_key]);
+        if (exists.rowCount === 0) {
+            return res.status(400).json({ message: "Unknown banner_key" });
+        }
+
+        const updated = await pool.query(
+            "UPDATE tutors SET banner_key = $2 WHERE user_id = $1 RETURNING user_id",
+            [id, banner_key]
+        );
+        if (updated.rowCount === 0) {
+            return res.status(404).json({ message: "Item not found" });
+        }
+
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
+        const acc = tutorRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(acc);
     })
 );
 

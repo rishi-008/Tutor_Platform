@@ -29,6 +29,27 @@ const getTutorById = async (id) => {
     return data;
 }
 
+const getBannerTypes = async () => {
+    const response = await fetch('/api/banner-types');
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+};
+
+const updateTutorBanner = async (id, banner_key) => {
+    const response = await fetch(`/api/tutor/banner/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ banner_key })
+    });
+    if (!response.ok) {
+        throw new Error('Failed to update tutor banner');
+    }
+    const updatedTutor = await response.json();
+    return updatedTutor;
+};
+
 const _loginTutor = async (email, password) => {
     let tt;
     await fetch('/api/tutor').then(res => res.json()).then(data => {
@@ -234,12 +255,14 @@ export {
     getStudentById,
     getTutorById,
     getTutors,
+    getBannerTypes,
     loginAccount,
     registerTutor,
     registerStudent,
     getNotifications,
     tutorListBasedOnQuery,
     updateTutorDescription,
+    updateTutorBanner,
     updateTutorCourses,
     updateStudentPassword
 };

@@ -15,6 +15,7 @@ const TutorProfilePage = () => {
     const [message, setMessage] = React.useState('');
 
     const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
+    const defaultBannerUrl = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/banners/banner.png';
 
 
     const handleModalToggle = () => {
@@ -58,7 +59,18 @@ const TutorProfilePage = () => {
 
                 <button className="backButton" onClick={handleBack} aria-label="Back">&larr;</button>
 
-                <div className="banner">Banner</div>
+                <div className="banner">
+                    <img
+                        className="banner-image"
+                        src={tutor?.banner_url || tutor?.bannerUrl || defaultBannerUrl}
+                        alt="Tutor banner"
+                        onError={(e) => {
+                            if (!e?.currentTarget) return;
+                            if (e.currentTarget.src === defaultBannerUrl) return;
+                            e.currentTarget.src = defaultBannerUrl;
+                        }}
+                    />
+                </div>
 
                 {/* <Link to="/userPortal" className="back-button"> Back </Link> */}
 
@@ -175,11 +187,18 @@ body, html {
 .banner {
     background-color: #e0e0e0;
     color: #666;
-    text-align: center;
-    padding: 50px;
-    font-size: 20px;
-    font-weight: bold;
-    flex: 0 0 15%; /* Fixed height proportional to the screen */
+    position: relative;
+    height: 140px;
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+
+.banner-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center;
 }
 
 /* Tutor Info Section */

@@ -19,6 +19,17 @@ CREATE TABLE IF NOT EXISTS students (
     language VARCHAR(100)
 );
 
+CREATE TABLE IF NOT EXISTS banner_types (
+    key TEXT PRIMARY KEY,
+    cdn_url TEXT NOT NULL
+);
+
+INSERT INTO banner_types (key, cdn_url) VALUES
+    ('banner', 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/banners/banner.png'),
+    ('banner2', 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/banners/banner2.png')
+ON CONFLICT (key) DO UPDATE
+SET cdn_url = EXCLUDED.cdn_url;
+
 CREATE TABLE IF NOT EXISTS tutors (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
@@ -29,6 +40,7 @@ CREATE TABLE IF NOT EXISTS tutors (
     phone VARCHAR(50),
     description TEXT,
     profile_pic TEXT,
+    banner_key TEXT DEFAULT 'banner',
     approved_courses TEXT[],
     rating NUMERIC(3,2) DEFAULT 0,
     "costPerHour" NUMERIC(10,2) DEFAULT 0

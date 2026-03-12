@@ -24,6 +24,9 @@ const handleAvatarError = (e) => {
     }
 };
 
+const getStudentName = (course) =>
+    firstNonEmptyString(course?.studentName, course?.student, course?.name, "");
+
 function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressCourses, pendingCourses, declinedCourses, refreshCourses }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSingleStudentPendingCourseRequestDecisionModalOpen, setIsSingleStudentPendingCourseRequestDecisionModalOpen] = useState(false);
@@ -93,8 +96,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                                 />
                             </div>
                             <div className="courseInfo">
-                                <p className="studentName"><b>Student:</b> {course.name}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
+                                <p className="studentName"><b>Student:</b> {getStudentName(course)}</p>
                             </div>
                         </div>
                     ))}
@@ -117,8 +119,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                                 />
                             </div>
                             <div className="courseInfo">
-                                <p className="studentName"><b>Student:</b> {course.studentName}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
+                                <p className="studentName"><b>Student:</b> {getStudentName(course)}</p>
                                 <p className="message"><b>Your Message:</b> {course.message}</p>
                             </div>
                         </div>
@@ -142,8 +143,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                                 />
                             </div>
                             <div className="courseInfo">
-                                <p className="studentName"><b>Tutor:</b> {course.studentName}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
+                                <p className="studentName"><b>Student:</b> {getStudentName(course)}</p>
                                 <p className="reason"><b>Reason for Rejection:</b> {course.reason}</p>
                             </div>
                         </div>
@@ -186,7 +186,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                                     </div>
                                     <div className="courseInfo">
                                         <p className="studentName"><b>Student:</b> {course.studentName}</p>
-                                        <p className="focus"><b>Focus:</b> {course.focus}</p>
+                                        {/* Focus removed from connection request cards */}
                                     </div>
                                 </div>
                             ))}

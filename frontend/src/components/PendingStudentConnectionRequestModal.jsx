@@ -32,6 +32,16 @@ const handleAvatarError = (e) => {
     }
 };
 
+const getNameLabelAndValueForViewer = (course, viewer) => {
+    const viewerType = viewer === "tutor" ? "tutor" : "student";
+    if (viewerType === "tutor") {
+        const studentName = firstNonEmptyString(course?.studentName, course?.student, course?.name, "");
+        return { label: "Student", value: studentName };
+    }
+    const tutorName = firstNonEmptyString(course?.tutorName, course?.tutor, "");
+    return { label: "Tutor", value: tutorName };
+};
+
 function PendingStudentConnectionRequestModal({
     courses,
     currentPage,
@@ -60,12 +70,14 @@ function PendingStudentConnectionRequestModal({
                                 />
                             </div>
                             <div className="courseInfo">
-                                <p className="studentName">
-                                    <b>Student:</b> {course.studentName}
-                                </p>
-                                <p className="focus">
-                                    <b>Focus:</b> {course.focus}
-                                </p>
+                                {(() => {
+                                    const { label, value } = getNameLabelAndValueForViewer(course, viewer);
+                                    return (
+                                        <p className="studentName">
+                                            <b>{label}:</b> {value}
+                                        </p>
+                                    );
+                                })()}
                             </div>
                         </div>
                     ))}

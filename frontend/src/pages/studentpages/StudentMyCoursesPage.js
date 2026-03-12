@@ -82,7 +82,6 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Tutor:</b> {course.tutor}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
                             </div>
                         </div>
                     ))}
@@ -106,7 +105,6 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Tutor:</b> {course.tutor}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
                                 <p className="message"><b>Your Message:</b> {course.message}</p>
                             </div>
                         </div>
@@ -131,7 +129,6 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Tutor:</b> {course.tutor}</p>
-                                <p className="focus"><b>Focus:</b> {course.focus}</p>
                                 <p className="reason"><b>Reason for Rejection:</b> {course.reason}</p>
                             </div>
                         </div>
@@ -167,7 +164,7 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                 //                     </div>
                 //                     <div className="courseInfo">
                 //                         <p className="studentName"><b>Tutor:</b> {course.tutor}</p>
-                //                         <p className="focus"><b>Focus:</b> {course.focus}</p>
+                //                         // Focus removed from connection request cards
                 //                     </div>
                 //                 </div>
                 //             ))}

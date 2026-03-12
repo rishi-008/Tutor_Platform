@@ -4,7 +4,42 @@ import {
     displayCoursesBasedOnPageNumberOnModal,
 } from "../utils/PendingStudentConnectionRequestUtils";
 
-function PendingStudentConnectionRequestModal({ courses, currentPage, itemsPerPage, setCurrentPage, onClose }) {
+const placeholderProfilePic =
+    "https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/Placeholder_Profile_Pic.png";
+
+const firstNonEmptyString = (...values) =>
+    values.find((v) => typeof v === "string" && v.trim() !== "");
+
+const getAvatarUrlForViewer = (course, viewer) => {
+    const viewerType = viewer === "tutor" ? "tutor" : "student";
+    const preferred =
+        viewerType === "tutor"
+            ? [course?.studentProfilePic, course?.student_profile_pic]
+            : [course?.tutorProfilePic, course?.tutor_profile_pic];
+
+    return firstNonEmptyString(
+        ...preferred,
+        course?.profilePicture,
+        course?.profilePic,
+        course?.profile_pic,
+        placeholderProfilePic
+    );
+};
+
+const handleAvatarError = (e) => {
+    if (e?.currentTarget?.src !== placeholderProfilePic) {
+        e.currentTarget.src = placeholderProfilePic;
+    }
+};
+
+function PendingStudentConnectionRequestModal({
+    courses,
+    currentPage,
+    itemsPerPage,
+    setCurrentPage,
+    onClose,
+    viewer,
+}) {
         console.log("These are the props that pending student connection request modal is receiving", { courses, currentPage, itemsPerPage, setCurrentPage, onClose });
     return (
         <div className="modalOverlay">
@@ -18,9 +53,10 @@ function PendingStudentConnectionRequestModal({ courses, currentPage, itemsPerPa
                         <div key={course.id} className="courseCard fullLengthCard">
                             <div className="profileSection">
                                 <img
-                                    src={course.profilePicture}
-                                    alt="Profile"
+                                    src={getAvatarUrlForViewer(course, viewer)}
+                                    alt={viewer === "tutor" ? "Student" : "Tutor"}
                                     className="profileImage"
+                                    onError={handleAvatarError}
                                 />
                             </div>
                             <div className="courseInfo">

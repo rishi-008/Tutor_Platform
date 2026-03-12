@@ -2,6 +2,28 @@ import React, { useState } from 'react';
 import PendingStudentConnectionRequestModal from '../../components/PendingStudentConnectionRequestModal';
 import SinglePendingStudentConnectionRequestModal from './SinglePendingStudentConnectionRequestModal';
 
+const placeholderProfilePic =
+    "https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/Placeholder_Profile_Pic.png";
+
+const firstNonEmptyString = (...values) =>
+    values.find((v) => typeof v === "string" && v.trim() !== "");
+
+const getStudentAvatarUrl = (course) =>
+    firstNonEmptyString(
+        course?.studentProfilePic,
+        course?.student_profile_pic,
+        course?.profilePicture,
+        course?.profilePic,
+        course?.profile_pic,
+        placeholderProfilePic
+    );
+
+const handleAvatarError = (e) => {
+    if (e?.currentTarget?.src !== placeholderProfilePic) {
+        e.currentTarget.src = placeholderProfilePic;
+    }
+};
+
 function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressCourses, pendingCourses, declinedCourses, refreshCourses }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSingleStudentPendingCourseRequestDecisionModalOpen, setIsSingleStudentPendingCourseRequestDecisionModalOpen] = useState(false);
@@ -63,7 +85,12 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                             onClick={() => handleCourseClick(course)}
                         >
                             <div className="profileSection">
-                                <img src={course.profilePicture} alt="Student" className="profileImage" />
+                                <img
+                                    src={getStudentAvatarUrl(course)}
+                                    alt="Student"
+                                    className="profileImage"
+                                    onError={handleAvatarError}
+                                />
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Student:</b> {course.name}</p>
@@ -82,7 +109,12 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                     {displayedPendingCourses.map(course => (
                         <div key={course.id} className="courseCard fullLengthCard" onClick={() => handlePendingCourseClick(course)}>
                             <div className="profileSection">
-                                <img src={course.profilePicture} alt="Student" className="profileImage" />
+                                <img
+                                    src={getStudentAvatarUrl(course)}
+                                    alt="Student"
+                                    className="profileImage"
+                                    onError={handleAvatarError}
+                                />
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Student:</b> {course.studentName}</p>
@@ -102,7 +134,12 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                     {displayedDeclinedCourses.map(course => (
                         <div key={course.id} className="courseCard declinedCards">
                             <div className="profileSection">
-                                <img src={course.profilePicture} alt="Tutor" className="profileImage" />
+                                <img
+                                    src={getStudentAvatarUrl(course)}
+                                    alt="Student"
+                                    className="profileImage"
+                                    onError={handleAvatarError}
+                                />
                             </div>
                             <div className="courseInfo">
                                 <p className="studentName"><b>Tutor:</b> {course.studentName}</p>
@@ -122,6 +159,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                             : declinedCourses}
                     isOpen={isTutorCourseSessionsCourseModalOpen}
                     onClose={() => setIsTutorCourseSessionsCourseModalOpen(false)}
+                    viewer="tutor"
                     itemsPerPage={modalCategory === 'inProgress' ? 5 : 3}
                     currentPage={currentPage}
                     setCurrentPage={setCurrentPage}

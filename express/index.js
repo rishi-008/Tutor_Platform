@@ -171,8 +171,10 @@ const sessionRowToDto = (row) => {
         id: row.id,
         student: row.student_name,
         studentId: row.student_id,
+        studentProfilePic: row.student_profile_pic ?? null,
         tutor: row.tutor_name,
         tutorId: row.tutor_id,
+        tutorProfilePic: row.tutor_profile_pic ?? null,
         focus: row.focus,
         profilePic: row.profile_pic,
         status: row.status,
@@ -1069,7 +1071,17 @@ app.get("/api/university/:name", (req, res) => {
 
 const fetchSessionsWhere = async (whereSql, params) => {
     const r = await pool.query(
-        `SELECT * FROM sessions ${whereSql} ORDER BY id ASC`,
+        `
+        SELECT
+            se.*,
+            t.profile_pic AS tutor_profile_pic,
+            s.profile_pic AS student_profile_pic
+        FROM sessions se
+        LEFT JOIN tutors t ON t.user_id = se.tutor_id
+        LEFT JOIN students s ON s.user_id = se.student_id
+        ${whereSql}
+        ORDER BY se.id ASC
+        `,
         params
     );
     let dtos = r.rows.map(sessionRowToDto);
@@ -1239,7 +1251,19 @@ app.get(
             return res.status(400).json({ message: "Invalid id" });
         }
 
-        const r = await pool.query("SELECT * FROM sessions WHERE id = $1", [id]);
+        const r = await pool.query(
+            `
+            SELECT
+                se.*,
+                t.profile_pic AS tutor_profile_pic,
+                s.profile_pic AS student_profile_pic
+            FROM sessions se
+            LEFT JOIN tutors t ON t.user_id = se.tutor_id
+            LEFT JOIN students s ON s.user_id = se.student_id
+            WHERE se.id = $1
+            `,
+            [id]
+        );
         if (r.rowCount === 0) {
             return res.status(404).json({ message: "Item not found" });
         }
@@ -1268,7 +1292,21 @@ app.delete(
             return res.status(404).json({ message: "Item not found" });
         }
 
-        let dto = sessionRowToDto(upd.rows[0]);
+        const r = await pool.query(
+            `
+            SELECT
+                se.*,
+                t.profile_pic AS tutor_profile_pic,
+                s.profile_pic AS student_profile_pic
+            FROM sessions se
+            LEFT JOIN tutors t ON t.user_id = se.tutor_id
+            LEFT JOIN students s ON s.user_id = se.student_id
+            WHERE se.id = $1
+            `,
+            [id]
+        );
+
+        let dto = sessionRowToDto(r.rows[0]);
         const hydrated = await hydrateResourceNamesForSessions([dto]);
         dto = hydrated[0];
         return res.json(dto);

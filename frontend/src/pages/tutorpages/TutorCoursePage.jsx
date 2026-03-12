@@ -9,6 +9,18 @@ function TutorCoursePage({ course, setSelectedContent }) {
 
     const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
 
+    const firstNonEmptyString = (...values) =>
+        values.find((v) => typeof v === 'string' && v.trim() !== '');
+
+    const studentAvatarUrl = firstNonEmptyString(
+        course?.studentProfilePic,
+        course?.student_profile_pic,
+        course?.profilePicture,
+        course?.profilePic,
+        course?.profile_pic,
+        placeholderProfilePic
+    );
+
     const handleChatInputChange = (e) => {
         setChatInput(e.target.value);
     };
@@ -87,7 +99,7 @@ function TutorCoursePage({ course, setSelectedContent }) {
                         <div className="tutorHeader">
                             <h3>{course.student || 'Student\'s Name'}</h3>
                             <img
-                                src={course.profilePicture || placeholderProfilePic}
+                                src={studentAvatarUrl}
                                 alt="Student Profile"
                                 className="profilePicture"
                                 onError={(e) => {

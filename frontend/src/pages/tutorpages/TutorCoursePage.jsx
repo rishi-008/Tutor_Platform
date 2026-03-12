@@ -245,7 +245,7 @@ function TutorCoursePage({ course, setSelectedContent }) {
                     height: 100px;
                     border-radius: 50%;
                     object-fit: cover;
-                    object-position: center;
+                    object-position: 50% 20%;
                     display: block;
                     flex-shrink: 0;
                 }

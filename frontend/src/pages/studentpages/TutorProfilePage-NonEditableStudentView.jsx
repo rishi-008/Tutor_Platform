@@ -165,13 +165,19 @@ body, html {
 
 .backButton {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    top: 12px;
+    left: 12px;
     font-size: 1.5rem;
-    border: none;
-    background: none;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.92);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     cursor: pointer;
     z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .profile-container {
@@ -186,16 +192,17 @@ body, html {
 /* Banner Section */
 .banner {
     background-color: #e0e0e0;
-    color: #666;
     position: relative;
     height: 140px;
     overflow: hidden;
     flex: 0 0 auto;
+    padding: 0;
+    line-height: 0;
 }
 
 .banner-image {
-    width: 100%;
-    height: 100%;
+    width: 100% !important;
+    height: 100% !important;
     display: block;
     object-fit: cover;
     object-position: center;

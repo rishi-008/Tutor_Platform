@@ -223,14 +223,15 @@ const TutorProfilePageEditable = (props) => {
                 }
                 .banner {
                     background-color: #e0e0e0;
-                    color: #666;
                     position: relative;
                     height: 140px;
                     overflow: hidden;
+                    padding: 0;
+                    line-height: 0;
                 }
                 .banner-image {
-                    width: 100%;
-                    height: 100%;
+                    width: 100% !important;
+                    height: 100% !important;
                     display: block;
                     object-fit: cover;
                     object-position: center;

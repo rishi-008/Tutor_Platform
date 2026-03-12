@@ -21,8 +21,7 @@ function Sidebar({ onSelect, toggleDropdown, isDropdownOpen, courses, onCourseSe
     };
 
     const handleMyCoursesClick = () => {
-        onSelect('myCourses');  
-        toggleDropdown();  
+        onSelect('myCourses');
     };
 
     return (
@@ -44,20 +43,7 @@ function Sidebar({ onSelect, toggleDropdown, isDropdownOpen, courses, onCourseSe
                         <div className="sideButton" onClick={() => onSelect('explore')}>Explore</div>
                     )}
                     <div className="sideButton" onClick={() => onSelect('notifications')}>Notifications</div>
-                    <div className="sideButton">
-                        <button className="sideButton" onClick={handleMyCoursesClick}>
-                            My Courses {isDropdownOpen ? '▼' : '▶'} 
-                        </button>
-                        {isDropdownOpen && (
-                            <div className="dropdownMenu">
-                                {courses.map(course => (
-                                    <div key={course.id} className="dropdownItem" onClick={() => onCourseSelect(course)}>
-                                        {course.focus}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <div className="sideButton" onClick={handleMyCoursesClick}>My Courses</div>
                 </div>
                 
                 <div className="ButtonsGroup">

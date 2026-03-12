@@ -35,6 +35,7 @@ function StudentExplorePage(props) {
             }}
           />
           <button
+            className="tutorSearchButton"
             onClick={() =>
               navigate("/tutorsearch", { state: { searchQueryResult: queriedTutors, searchedQuery: searchedQuery, user: user } })
             }
@@ -60,14 +61,36 @@ function StudentExplorePage(props) {
             padding: 12px 20px;
             margin: 8px 0;
             box-sizing: border-box;
+            align-items: center;
           }
-          button {
-            background-color: black;
+
+          .navbar input {
+            flex: 1;
+            min-width: 240px;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+          }
+
+          .tutorSearchButton {
+            background-color: #007BFF;
             color: white;
-            border: none;
+            border: 1px solid #007BFF;
             cursor: pointer;
-            width: 60px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            white-space: nowrap;
           }
+
+          .tutorSearchButton:hover {
+            filter: brightness(0.95);
+          }
+
+          .tutorSearchButton:active {
+            filter: brightness(0.9);
+          }
+
           .Tutor-List {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

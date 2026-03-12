@@ -111,7 +111,7 @@ const TutorProfilePageEditable = (props) => {
                             e.currentTarget.src = defaultBannerUrl;
                         }}
                     />
-                    <button className="banner-edit" onClick={openBannerModal}>Edit</button>
+                    <button className="actionButton" onClick={openBannerModal}>Edit</button>
                 </div>
                 <div className="tutor-info">
                     <img
@@ -138,9 +138,9 @@ const TutorProfilePageEditable = (props) => {
                         <p>{description}</p>
                     )}
                     {isEditingDescription ? (
-                        <button onClick={handleSaveDescriptionClick}>Save</button>
+                        <button className="actionButton primary" onClick={handleSaveDescriptionClick}>Save</button>
                     ) : (
-                        <button onClick={handleEditDescriptionClick}>Edit</button>
+                        <button className="actionButton" onClick={handleEditDescriptionClick}>Edit</button>
                     )}
                 </div>
                 <div className="courses">
@@ -155,11 +155,11 @@ const TutorProfilePageEditable = (props) => {
                                             value={course}
                                             onChange={(event) => handleCoursesChange(index, event)}
                                         />
-                                        <button onClick={() => handleRemoveCourse(index)}>Remove</button>
+                                        <button className="actionButton danger" onClick={() => handleRemoveCourse(index)}>Remove</button>
                                     </div>
                                 ))}
-                                <button onClick={handleAddCourse}>Add Course</button>
-                                <button onClick={handleSaveCoursesClick}>Save</button>
+                                <button className="actionButton" onClick={handleAddCourse}>Add Course</button>
+                                <button className="actionButton primary" onClick={handleSaveCoursesClick}>Save</button>
                             </>
                         ) : (
                             courses.length > 0 ? (
@@ -171,7 +171,7 @@ const TutorProfilePageEditable = (props) => {
                             )
                         )}
                     </div>
-                    {!isEditingCourses && <button onClick={handleEditCoursesClick}>Edit</button>}
+                    {!isEditingCourses && <button className="actionButton" onClick={handleEditCoursesClick}>Edit</button>}
                 </div>
             </div>
 
@@ -236,15 +236,50 @@ const TutorProfilePageEditable = (props) => {
                     object-fit: cover;
                     object-position: center;
                 }
-                .banner-edit {
-                    position: absolute;
-                    top: 12px;
-                    right: 12px;
-                    padding: 8px 12px;
-                    border-radius: 6px;
+                .actionButton {
+                    padding: 10px 14px;
+                    border-radius: 8px;
                     border: 1px solid #ddd;
                     background: white;
                     cursor: pointer;
+                    font-weight: 600;
+                }
+
+                .banner .actionButton {
+                    position: absolute;
+                    top: 12px;
+                    right: 12px;
+                }
+
+                /* Re-use the same button look for the rest of the page */
+                .content > .actionButton,
+                .courses > .actionButton {
+                    margin-top: 10px;
+                }
+
+                .course-edit .actionButton {
+                    padding: 8px 12px;
+                    margin-top: 0;
+                }
+
+                .actionButton.primary {
+                    background: #007BFF;
+                    color: white;
+                    border-color: #007BFF;
+                }
+
+                .actionButton.danger {
+                    background: #dc3545;
+                    color: white;
+                    border-color: #dc3545;
+                }
+
+                .actionButton:hover {
+                    filter: brightness(0.97);
+                }
+
+                .actionButton:active {
+                    filter: brightness(0.93);
                 }
                 .tutor-info {
                     display: flex;

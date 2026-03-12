@@ -167,7 +167,10 @@ const TutorProfilePageEditable = (props) => {
                     height: 100px;
                     background-color: #ccc;
                     border-radius: 50%;
+                    display: block;
+                    aspect-ratio: 1 / 1;
                     object-fit: cover;
+                    object-position: 50% 12%;
                 }
                 .info {
                     margin-left: 20px;

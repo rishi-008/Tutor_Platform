@@ -198,7 +198,10 @@ body, html {
     background-color: #ccc;
     border-radius: 50%;
     flex-shrink: 0;
+    display: block;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
+    object-position: 50% 12%;
 }
 
 .info {

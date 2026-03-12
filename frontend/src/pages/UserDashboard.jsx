@@ -141,7 +141,7 @@ function UserDashboard() {
     return (
         <div className="container">
             <tutorProfilePage />
-            <Sidebar onSelect={setSelectedContent} toggleDropdown={toggleDropdown} isDropdownOpen={isDropdownOpen} courses={inProgressCourses} onCourseSelect={onCourseSelect} isTutor={isTutor} />
+            <Sidebar onSelect={setSelectedContent} toggleDropdown={toggleDropdown} isDropdownOpen={isDropdownOpen} courses={inProgressCourses} onCourseSelect={onCourseSelect} isTutor={isTutor} user={user} />
             <main className="dashboardContent">
                 {renderContent()}
             </main>

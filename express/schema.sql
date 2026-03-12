@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS students (
     name VARCHAR(255) NOT NULL,
     age INTEGER,
     major VARCHAR(255),
+    profile_pic TEXT,
     birthday DATE,
     language VARCHAR(100)
 );

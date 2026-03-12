@@ -77,6 +77,7 @@ const STUDENT_SELECT_COLUMNS = `
         s.name,
         s.age,
         s.major,
+        s.profile_pic,
         s.birthday,
         s.language
     FROM students s
@@ -119,6 +120,7 @@ const studentRowToAccount = (row) => ({
         major: row.major,
         birthday: row.birthday,
         language: row.language,
+        profile_pic: row.profile_pic,
     },
     isAdmin: row.is_admin,
     notifications: [],

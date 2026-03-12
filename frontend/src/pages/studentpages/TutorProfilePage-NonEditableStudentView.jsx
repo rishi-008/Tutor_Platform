@@ -14,6 +14,8 @@ const TutorProfilePage = () => {
     const [isModalOpen, setIsModalOpen] = React.useState(false);
     const [message, setMessage] = React.useState('');
 
+    const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
+
 
     const handleModalToggle = () => {
         setIsModalOpen(!isModalOpen);
@@ -61,7 +63,16 @@ const TutorProfilePage = () => {
                 {/* <Link to="/userPortal" className="back-button"> Back </Link> */}
 
                 <div className="tutor-info">
-                    <div className="profile-pic"></div>
+                    <img
+                        className="profile-pic"
+                        src={tutor?.profile_pic || tutor?.profilePic || placeholderProfilePic}
+                        alt={`${tutor?.name || 'Tutor'} profile`}
+                        onError={(e) => {
+                            if (!e?.currentTarget) return;
+                            if (e.currentTarget.src === placeholderProfilePic) return;
+                            e.currentTarget.src = placeholderProfilePic;
+                        }}
+                    />
                     <div className="info">
                         <h2>{tutor.name}</h2>
                         <p>Education: {tutor.education}</p>
@@ -187,6 +198,7 @@ body, html {
     background-color: #ccc;
     border-radius: 50%;
     flex-shrink: 0;
+    object-fit: cover;
 }
 
 .info {

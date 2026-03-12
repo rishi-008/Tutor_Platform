@@ -8,6 +8,7 @@ const TutorProfilePageEditable = (props) => {
     const [courses, setCourses] = useState([]);
     const [newlyAddedCourses, setNewlyAddedCourses] = useState([]);
     const [tutorInfo, setTutorInfo] = useState({});
+       const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
 
     React.useEffect(() => {
         async function fetchData() {
@@ -73,7 +74,16 @@ const TutorProfilePageEditable = (props) => {
             <div className="profile-container">
                 <div className="banner">Banner</div>
                 <div className="tutor-info">
-                    <div className="profile-pic"></div>
+                    <img
+                        className="profile-pic"
+                           src={tutor?.profile_pic || tutor?.profilePic || placeholderProfilePic}
+                        alt={`${tutor?.name || 'Tutor'} profile`}
+                        onError={(e) => {
+                            if (!e?.currentTarget) return;
+                               if (e.currentTarget.src === placeholderProfilePic) return;
+                               e.currentTarget.src = placeholderProfilePic;
+                        }}
+                    />
                     <div className="info">
                         <h2>{tutor.name}</h2>
                         <p>Education: {tutor.education}</p>
@@ -157,6 +167,7 @@ const TutorProfilePageEditable = (props) => {
                     height: 100px;
                     background-color: #ccc;
                     border-radius: 50%;
+                    object-fit: cover;
                 }
                 .info {
                     margin-left: 20px;

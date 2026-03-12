@@ -5,12 +5,28 @@ const TutorCard = (props) => {
     const tutor = tutorData.tutor;
     console.log(tutorData);
     const user = props.user || null;
+
+    const fallbackAvatar =
+        'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
+
+    const tutorProfilePic = tutor?.profile_pic || tutor?.profilePic || tutorData?.profile_pic || tutorData?.profilePic || '';
+
+    const handleImgError = (e) => {
+        if (!e?.currentTarget) return;
+        if (e.currentTarget.src === fallbackAvatar) return;
+        e.currentTarget.src = fallbackAvatar;
+    };
     return (
         <>
             <Link to="/tutorProfile" state={{ tutor: tutorData, user: user }}>
                 <div className="tutor-card">
                     <div className="profile-pic-container">
-                        <img className="profile-pic" src="https://tutorax.com/wp-content/uploads/2021/11/Orthopedagogue-rencontre-orthopedagogie.jpg" alt="Profile Pic" />
+                        <img
+                            className="profile-pic"
+                            src={tutorProfilePic || fallbackAvatar}
+                            alt={`${tutor?.name || 'Tutor'} profile`}
+                            onError={handleImgError}
+                        />
                         <h3 className="tutor-name">{tutor.name}</h3>
                         <div className="rating">
                             ⭐{tutor.rating}/5
@@ -52,6 +68,9 @@ const TutorCard = (props) => {
                     }
                     .profile-pic {
                         height: 100%;
+                        width: 100%;
+                        object-fit: cover;
+                        border-radius: 6px;
                     }
                     .profile-pic-container {
                         height: 80%;

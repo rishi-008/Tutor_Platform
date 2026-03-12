@@ -7,6 +7,8 @@ function TutorCoursePage({ course, setSelectedContent }) {
     const [chatOutput, setChatOutput] = useState(course?.chatMessages ?? []);
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
+    const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
+
     const handleChatInputChange = (e) => {
         setChatInput(e.target.value);
     };
@@ -85,9 +87,14 @@ function TutorCoursePage({ course, setSelectedContent }) {
                         <div className="tutorHeader">
                             <h3>{course.student || 'Student\'s Name'}</h3>
                             <img
-                                src={course.profilePicture || '/default-profile.png'}
+                                src={course.profilePicture || placeholderProfilePic}
                                 alt="Student Profile"
                                 className="profilePicture"
+                                onError={(e) => {
+                                    if (!e?.currentTarget) return;
+                                    if (e.currentTarget.src === placeholderProfilePic) return;
+                                    e.currentTarget.src = placeholderProfilePic;
+                                }}
                             />
                         </div>
                         <p>{course.description || 'Description not available.'}</p>

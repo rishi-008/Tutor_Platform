@@ -169,10 +169,13 @@ function RegisterPage() {
     const formData = new FormData();
     formData.append('file', tutorData.proofdoc);
 
+    const idRes = await fetch('/api/tutor/id');
+    const reservedId = await idRes.json();
+
     let profilePicUrl = null;
     if (userData.profilePicFile) {
       try {
-        profilePicUrl = await uploadProfilePic(userData.profilePicFile);
+        profilePicUrl = await uploadProfilePic(userData.profilePicFile, { userType: 'tutor', id: reservedId });
       } catch (e) {
         setError(e?.message || 'Profile picture upload failed');
         return;
@@ -181,6 +184,7 @@ function RegisterPage() {
 
     const payload = {
       ...tutorData,
+      id: reservedId,
       tutor: {
         ...(tutorData.tutor || {}),
         profile_pic: profilePicUrl || tutorData?.tutor?.profile_pic || tutorData?.tutor?.profilePic || '',
@@ -215,10 +219,13 @@ function RegisterPage() {
     } else {
       console.log('Student Data:', studentData);
       setStudentData(prev => ({ ...prev, password: passwordInput.password }));
+      const idRes = await fetch('/api/student/id');
+      const reservedId = await idRes.json();
+
       let profilePicUrl = null;
       if (userData.profilePicFile) {
         try {
-          profilePicUrl = await uploadProfilePic(userData.profilePicFile);
+          profilePicUrl = await uploadProfilePic(userData.profilePicFile, { userType: 'student', id: reservedId });
         } catch (e) {
           setError(e?.message || 'Profile picture upload failed');
           return;
@@ -227,6 +234,7 @@ function RegisterPage() {
 
       const payload = {
         ...studentData,
+        id: reservedId,
         student: {
           ...(studentData.student || {}),
           profile_pic: profilePicUrl || studentData?.student?.profile_pic || studentData?.student?.profilePic || '',

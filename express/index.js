@@ -54,11 +54,9 @@ const safeImageExtension = (mimetype, originalName) => {
 const makeRandomId = () =>
     typeof crypto.randomUUID === "function" ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
 
-const uploadToSpacesIfConfigured = async ({ buffer, contentType, ext }) => {
+const uploadToSpacesIfConfigured = async ({ buffer, contentType, key }) => {
     const spaces = getSpacesConfig();
     if (!spaces.enabled) return null;
-
-    const key = `profile-pics/profile-${Date.now()}-${makeRandomId()}${ext}`;
 
     const client = new S3Client({
         region: spaces.region,
@@ -113,21 +111,72 @@ app.post("/api/upload/profile-pic", (req, res) => {
         Promise.resolve()
             .then(async () => {
                 const ext = safeImageExtension(req.file.mimetype, req.file.originalname);
+                const key = `profile-${Date.now()}-${makeRandomId()}${ext}`;
 
                 // Prefer DigitalOcean Spaces when configured
                 const spacesUrl = await uploadToSpacesIfConfigured({
                     buffer: req.file.buffer,
                     contentType: req.file.mimetype,
-                    ext,
+                    key,
                 });
                 if (spacesUrl) {
                     return res.status(201).json({ url: spacesUrl });
                 }
 
                 // Fallback: store locally on disk
-                const filename = `profile-${Date.now()}-${makeRandomId()}${ext}`;
-                fs.writeFileSync(path.join(profilePicsDir, filename), req.file.buffer);
-                const url = `/uploads/profile-pics/${filename}`;
+                fs.writeFileSync(path.join(profilePicsDir, key), req.file.buffer);
+                const url = `/uploads/profile-pics/${key}`;
+                return res.status(201).json({ url });
+            })
+            .catch((uploadErr) => {
+                console.error("[upload] profile-pic store error:", uploadErr);
+                return res.status(500).json({ message: "Upload failed" });
+            });
+    });
+});
+
+app.post("/api/upload/profile-pic/:userType/:id", (req, res) => {
+    const userType = String(req.params.userType || "").toLowerCase();
+    const id = Number(req.params.id);
+    if (userType !== "student" && userType !== "tutor") {
+        return res.status(400).json({ message: "Invalid userType" });
+    }
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ message: "Invalid id" });
+    }
+
+    profilePicUpload.single("file")(req, res, (err) => {
+        if (err) {
+            if (err.code === "LIMIT_FILE_SIZE") {
+                return res.status(413).json({ message: "File too large (max 2MB)" });
+            }
+            if (err.message === "INVALID_FILE_TYPE") {
+                return res.status(400).json({ message: "Invalid file type (must be an image)" });
+            }
+            console.error("[upload] profile-pic error:", err);
+            return res.status(500).json({ message: "Upload failed" });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: "Missing file" });
+        }
+
+        Promise.resolve()
+            .then(async () => {
+                const ext = safeImageExtension(req.file.mimetype, req.file.originalname);
+                const key = `${userType}-${id}${ext}`;
+
+                const spacesUrl = await uploadToSpacesIfConfigured({
+                    buffer: req.file.buffer,
+                    contentType: req.file.mimetype,
+                    key,
+                });
+                if (spacesUrl) {
+                    return res.status(201).json({ url: spacesUrl });
+                }
+
+                fs.writeFileSync(path.join(profilePicsDir, key), req.file.buffer);
+                const url = `/uploads/profile-pics/${key}`;
                 return res.status(201).json({ url });
             })
             .catch((uploadErr) => {

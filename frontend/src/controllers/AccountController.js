@@ -115,11 +115,14 @@ const getFile = async (url) => {
     return data;
 }
 
-const uploadProfilePic = async (file) => {
+const uploadProfilePic = async (file, { userType, id } = {}) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await fetch('/api/upload/profile-pic', {
+    const hasTarget = (userType === 'student' || userType === 'tutor') && Number.isInteger(id) && id > 0;
+    const url = hasTarget ? `/api/upload/profile-pic/${userType}/${id}` : '/api/upload/profile-pic';
+
+    const res = await fetch(url, {
         method: 'POST',
         body: formData,
     });
@@ -132,8 +135,10 @@ const uploadProfilePic = async (file) => {
 
 const registerTutor = async (tutor) => {
     let tt;
-    const id = await (fetch('/api/tutor/id'));
-    tutor.id = await id.json();
+    if (!Number.isInteger(tutor.id) || tutor.id <= 0) {
+        const id = await (fetch('/api/tutor/id'));
+        tutor.id = await id.json();
+    }
     const res = await fetch('/api/tutor');
     const data = await res.json();
     const url = await fileBinUpload(tutor.proofdoc, tutor.id);
@@ -154,8 +159,10 @@ const registerTutor = async (tutor) => {
 
 const registerStudent = async (student) => {
     let st;
-    const id = await (fetch('/api/student/id'));
-    student.id = await id.json();
+    if (!Number.isInteger(student.id) || student.id <= 0) {
+        const id = await (fetch('/api/student/id'));
+        student.id = await id.json();
+    }
     const res = await fetch('/api/student');
     const data = await res.json();
     console.log(data);

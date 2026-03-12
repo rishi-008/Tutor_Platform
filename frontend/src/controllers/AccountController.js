@@ -115,6 +115,21 @@ const getFile = async (url) => {
     return data;
 }
 
+const uploadProfilePic = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('/api/upload/profile-pic', {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data?.message || 'Profile pic upload failed');
+    }
+    return data?.url;
+};
+
 const registerTutor = async (tutor) => {
     let tt;
     const id = await (fetch('/api/tutor/id'));
@@ -259,6 +274,7 @@ export {
     loginAccount,
     registerTutor,
     registerStudent,
+    uploadProfilePic,
     getNotifications,
     tutorListBasedOnQuery,
     updateTutorDescription,

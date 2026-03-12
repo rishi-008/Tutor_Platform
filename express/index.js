@@ -2,6 +2,9 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const multer = require("multer");
+const crypto = require("crypto");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -10,6 +13,129 @@ const asyncHandler = (handler) => (req, res, next) =>
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../frontend/build")));
+
+// Serve uploaded assets
+const uploadsRoot = path.join(__dirname, "uploads");
+const profilePicsDir = path.join(uploadsRoot, "profile-pics");
+fs.mkdirSync(profilePicsDir, { recursive: true });
+app.use("/uploads", express.static(uploadsRoot));
+
+const PROFILE_PIC_MAX_BYTES = 2 * 1024 * 1024; // 2MB
+
+const getSpacesConfig = () => {
+    const accessKeyId = process.env.DO_SPACES_ACCESS_KEY || process.env.SPACES_KEY || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.DO_SPACES_SECRET_KEY || process.env.SPACES_SECRET || process.env.AWS_SECRET_ACCESS_KEY;
+    const region = process.env.DO_SPACES_REGION || "tor1";
+    const bucket = process.env.DO_PROFILE_PICS_BUCKET || "tutor-platform-profile-pics";
+    // For DigitalOcean Spaces, the S3 endpoint is typically: https://tor1.digitaloceanspaces.com
+    const endpoint = process.env.DO_SPACES_ENDPOINT || `https://${region}.digitaloceanspaces.com`;
+    // Public base URL can be the bucket origin endpoint: https://<bucket>.<region>.digitaloceanspaces.com
+    const publicBaseUrl =
+        process.env.DO_PROFILE_PICS_PUBLIC_BASE_URL || `https://${bucket}.${region}.digitaloceanspaces.com`;
+
+    const enabled = Boolean(accessKeyId && secretAccessKey && bucket && endpoint && publicBaseUrl);
+    return { enabled, accessKeyId, secretAccessKey, region, bucket, endpoint, publicBaseUrl };
+};
+
+const safeImageExtension = (mimetype, originalName) => {
+    const mime = typeof mimetype === "string" ? mimetype.toLowerCase() : "";
+    if (mime === "image/jpeg" || mime === "image/jpg") return ".jpg";
+    if (mime === "image/png") return ".png";
+    if (mime === "image/webp") return ".webp";
+    if (mime === "image/gif") return ".gif";
+    // fall back to original ext if it looks safe
+    const ext = (path.extname(originalName || "") || "").toLowerCase();
+    if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) {
+        return ext === ".jpeg" ? ".jpg" : ext;
+    }
+    return ".jpg";
+};
+
+const makeRandomId = () =>
+    typeof crypto.randomUUID === "function" ? crypto.randomUUID() : crypto.randomBytes(16).toString("hex");
+
+const uploadToSpacesIfConfigured = async ({ buffer, contentType, ext }) => {
+    const spaces = getSpacesConfig();
+    if (!spaces.enabled) return null;
+
+    const key = `profile-pics/profile-${Date.now()}-${makeRandomId()}${ext}`;
+
+    const client = new S3Client({
+        region: spaces.region,
+        endpoint: spaces.endpoint,
+        credentials: {
+            accessKeyId: spaces.accessKeyId,
+            secretAccessKey: spaces.secretAccessKey,
+        },
+    });
+
+    await client.send(
+        new PutObjectCommand({
+            Bucket: spaces.bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            ACL: "public-read",
+        })
+    );
+
+    return `${spaces.publicBaseUrl}/${key}`;
+};
+
+const profilePicUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: PROFILE_PIC_MAX_BYTES },
+    fileFilter: (_req, file, cb) => {
+        if (!file || typeof file.mimetype !== "string" || !file.mimetype.startsWith("image/")) {
+            return cb(new Error("INVALID_FILE_TYPE"));
+        }
+        return cb(null, true);
+    },
+});
+
+app.post("/api/upload/profile-pic", (req, res) => {
+    profilePicUpload.single("file")(req, res, (err) => {
+        if (err) {
+            if (err.code === "LIMIT_FILE_SIZE") {
+                return res.status(413).json({ message: "File too large (max 2MB)" });
+            }
+            if (err.message === "INVALID_FILE_TYPE") {
+                return res.status(400).json({ message: "Invalid file type (must be an image)" });
+            }
+            console.error("[upload] profile-pic error:", err);
+            return res.status(500).json({ message: "Upload failed" });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: "Missing file" });
+        }
+
+        Promise.resolve()
+            .then(async () => {
+                const ext = safeImageExtension(req.file.mimetype, req.file.originalname);
+
+                // Prefer DigitalOcean Spaces when configured
+                const spacesUrl = await uploadToSpacesIfConfigured({
+                    buffer: req.file.buffer,
+                    contentType: req.file.mimetype,
+                    ext,
+                });
+                if (spacesUrl) {
+                    return res.status(201).json({ url: spacesUrl });
+                }
+
+                // Fallback: store locally on disk
+                const filename = `profile-${Date.now()}-${makeRandomId()}${ext}`;
+                fs.writeFileSync(path.join(profilePicsDir, filename), req.file.buffer);
+                const url = `/uploads/profile-pics/${filename}`;
+                return res.status(201).json({ url });
+            })
+            .catch((uploadErr) => {
+                console.error("[upload] profile-pic store error:", uploadErr);
+                return res.status(500).json({ message: "Upload failed" });
+            });
+    });
+});
 
 
 const accountsFilePath = path.join(__dirname, "api/accounts.json");
@@ -820,6 +946,7 @@ app.post(
         const name = student.name;
         const age = student.age ?? null;
         const major = student.major ?? null;
+        const profile_pic = student.profile_pic ?? student.profilePic ?? null;
         const birthday = typeof student.birthday === "string" && student.birthday.trim() === "" ? null : student.birthday ?? null;
         const language = student.language ?? null;
 
@@ -858,8 +985,8 @@ app.post(
             );
 
             await client.query(
-                "INSERT INTO students (user_id, name, age, major, birthday, language) VALUES ($1, $2, $3, $4, $5, $6)",
-                [createdUserId, name, age, major, birthday, language]
+                "INSERT INTO students (user_id, name, age, major, profile_pic, birthday, language) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                [createdUserId, name, age, major, profile_pic, birthday, language]
             );
 
             const notificationRows = Array.isArray(body.notifications) ? body.notifications : [];

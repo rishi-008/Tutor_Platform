@@ -3,5 +3,6 @@ package-lock.json
 .backup
 .env
 express/api/*.json
+express/uploads/
 
 .DS_Store

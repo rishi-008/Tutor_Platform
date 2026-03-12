@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/RegisterPage.css';
-import { registerStudent, registerTutor } from '../controllers/AccountController';
+import { registerStudent, registerTutor, uploadProfilePic } from '../controllers/AccountController';
+
+const MAX_PROFILE_PIC_BYTES = 2 * 1024 * 1024; // 2MB
 
 function RegisterPage() {
   const [userData, setUserData] = useState({
@@ -14,7 +16,8 @@ function RegisterPage() {
     isTutor: false,
     notifications: true,
     isApproved: true,
-    proofdoc: null
+    proofdoc: null,
+    profilePicFile: null,
   });
 
   const [studentData, setStudentData] = useState({
@@ -138,12 +141,53 @@ function RegisterPage() {
     console.log(event.target.files[0]);
   };
 
+  const handleProfilePicChange = (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) {
+      setUserData(prev => ({ ...prev, profilePicFile: null }));
+      return;
+    }
+    if (file.size > MAX_PROFILE_PIC_BYTES) {
+      setError('Profile picture must be 2MB or smaller.');
+      event.target.value = '';
+      setUserData(prev => ({ ...prev, profilePicFile: null }));
+      return;
+    }
+    if (!String(file.type || '').startsWith('image/')) {
+      setError('Profile picture must be an image file.');
+      event.target.value = '';
+      setUserData(prev => ({ ...prev, profilePicFile: null }));
+      return;
+    }
+    setError('');
+    setUserData(prev => ({ ...prev, profilePicFile: file }));
+  };
+
   // Function to handle uploading the proof document
   const handleProofSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData();
     formData.append('file', tutorData.proofdoc);
-    await registerTutor(tutorData);
+
+    let profilePicUrl = null;
+    if (userData.profilePicFile) {
+      try {
+        profilePicUrl = await uploadProfilePic(userData.profilePicFile);
+      } catch (e) {
+        setError(e?.message || 'Profile picture upload failed');
+        return;
+      }
+    }
+
+    const payload = {
+      ...tutorData,
+      tutor: {
+        ...(tutorData.tutor || {}),
+        profile_pic: profilePicUrl || tutorData?.tutor?.profile_pic || tutorData?.tutor?.profilePic || '',
+      },
+    };
+
+    await registerTutor(payload);
     setSubmissionComplete(true);
   };
 
@@ -171,7 +215,25 @@ function RegisterPage() {
     } else {
       console.log('Student Data:', studentData);
       setStudentData(prev => ({ ...prev, password: passwordInput.password }));
-      await registerStudent(studentData);
+      let profilePicUrl = null;
+      if (userData.profilePicFile) {
+        try {
+          profilePicUrl = await uploadProfilePic(userData.profilePicFile);
+        } catch (e) {
+          setError(e?.message || 'Profile picture upload failed');
+          return;
+        }
+      }
+
+      const payload = {
+        ...studentData,
+        student: {
+          ...(studentData.student || {}),
+          profile_pic: profilePicUrl || studentData?.student?.profile_pic || studentData?.student?.profilePic || '',
+        },
+      };
+
+      await registerStudent(payload);
       navigate('/login');
     }
   };
@@ -198,6 +260,13 @@ function RegisterPage() {
               <option value="">Select Language</option>
               {languages.map(language => <option key={language} value={language}>{language}</option>)}
             </select>
+
+            <label className="upload-label">Profile Picture (optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleProfilePicChange}
+            />
             <div className="toggle-container">
               <label className="toggle-label">I register as a tutor</label>
               <div className="toggle-switch" onClick={handleToggle}>

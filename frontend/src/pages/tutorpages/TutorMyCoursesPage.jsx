@@ -279,7 +279,7 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                     margin-right: 15px;
                 }
 
-                .profileImage {
+                .courseCard .profileImage {
                     width: 60px;
                     height: 60px;
                     border-radius: 50%;

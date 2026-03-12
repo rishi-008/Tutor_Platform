@@ -244,6 +244,10 @@ function TutorCoursePage({ course, setSelectedContent }) {
                     width: 100px;
                     height: 100px;
                     border-radius: 50%;
+                    object-fit: cover;
+                    object-position: center;
+                    display: block;
+                    flex-shrink: 0;
                 }
 
                 .resources {

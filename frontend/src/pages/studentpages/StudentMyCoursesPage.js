@@ -164,7 +164,7 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                 //                     </div>
                 //                     <div className="courseInfo">
                 //                         <p className="studentName"><b>Tutor:</b> {course.tutor}</p>
-                //                         // Focus removed from connection request cards
+                //
                 //                     </div>
                 //                 </div>
                 //             ))}

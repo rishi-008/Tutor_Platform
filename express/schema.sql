@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     focus VARCHAR(255),
     profile_pic TEXT,
     status VARCHAR(50),
+    ai_session_pack_count INTEGER NOT NULL DEFAULT 0,
     start_time TIMESTAMP,
     end_time TIMESTAMP,
     duration INTEGER,

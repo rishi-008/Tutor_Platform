@@ -293,6 +293,27 @@ pool.on("error", (err) => {
     console.error("[db] Pool error:", err);
 });
 
+const MAX_AI_SESSION_PACKS_PER_ACTIVE_SESSION = 5;
+
+// If the DB schema isn't migrated yet, we'll fall back to an in-memory counter.
+// This avoids accidentally overusing OpenAI while keeping the app functional.
+const aiSessionPackCountFallback = new Map();
+
+const ensureAiSessionPackCountColumn = async () => {
+    try {
+        await pool.query(
+            "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ai_session_pack_count INTEGER NOT NULL DEFAULT 0"
+        );
+    } catch (err) {
+        console.warn(
+            "[db] unable to ensure ai_session_pack_count column; falling back to in-memory limits:",
+            err?.message || err
+        );
+    }
+};
+
+ensureAiSessionPackCountColumn();
+
 const TUTOR_SELECT_COLUMNS = `
     SELECT
         u.id,
@@ -599,15 +620,65 @@ app.post(
             return res.json(buildMockPack({ sessionId: numericSessionId, audience: normalizedAudience }));
         }
 
-        const sessionResult = await pool.query(
-            "SELECT id, focus, description, student_name, tutor_name, chat_messages FROM sessions WHERE id = $1",
-            [numericSessionId]
-        );
-        if (sessionResult.rowCount === 0) {
-            return res.status(404).json({ message: "Session not found" });
+        // Fetch session + enforce per-session AI usage limit for active sessions.
+        let row = null;
+        let aiCount = 0;
+        try {
+            const sessionResult = await pool.query(
+                "SELECT id, status, focus, description, student_name, tutor_name, chat_messages, COALESCE(ai_session_pack_count, 0) AS ai_session_pack_count FROM sessions WHERE id = $1",
+                [numericSessionId]
+            );
+            if (sessionResult.rowCount === 0) {
+                return res.status(404).json({ message: "Session not found" });
+            }
+            row = sessionResult.rows[0];
+            aiCount = Number(row.ai_session_pack_count || 0);
+        } catch (err) {
+            // Handle missing column / migration issues gracefully.
+            if (String(err?.code) !== "42703") {
+                throw err;
+            }
+            const sessionResult = await pool.query(
+                "SELECT id, status, focus, description, student_name, tutor_name, chat_messages FROM sessions WHERE id = $1",
+                [numericSessionId]
+            );
+            if (sessionResult.rowCount === 0) {
+                return res.status(404).json({ message: "Session not found" });
+            }
+            row = sessionResult.rows[0];
+            aiCount = Number(aiSessionPackCountFallback.get(numericSessionId) || 0);
         }
 
-        const row = sessionResult.rows[0];
+        const status = typeof row.status === "string" ? row.status.toLowerCase() : "";
+        const isActive = status === "active";
+
+        if (isActive && aiCount >= MAX_AI_SESSION_PACKS_PER_ACTIVE_SESSION) {
+            return res.status(429).json({ message: "summary limit reached" });
+        }
+
+        // Increment the counter (best-effort) BEFORE calling OpenAI.
+        if (isActive) {
+            try {
+                const updated = await pool.query(
+                    "UPDATE sessions SET ai_session_pack_count = COALESCE(ai_session_pack_count, 0) + 1 WHERE id = $1 AND LOWER(status) = 'active' AND COALESCE(ai_session_pack_count, 0) < $2 RETURNING ai_session_pack_count",
+                    [numericSessionId, MAX_AI_SESSION_PACKS_PER_ACTIVE_SESSION]
+                );
+                if (updated.rowCount === 0) {
+                    return res.status(429).json({ message: "summary limit reached" });
+                }
+            } catch (err) {
+                if (String(err?.code) === "42703") {
+                    const next = (Number(aiSessionPackCountFallback.get(numericSessionId) || 0) + 1);
+                    aiSessionPackCountFallback.set(numericSessionId, next);
+                    if (next > MAX_AI_SESSION_PACKS_PER_ACTIVE_SESSION) {
+                        return res.status(429).json({ message: "summary limit reached" });
+                    }
+                } else {
+                    console.warn("[ai] unable to increment ai_session_pack_count; proceeding:", err?.message || err);
+                }
+            }
+        }
+
         const focus = typeof row.focus === "string" ? row.focus : "";
         const description = typeof row.description === "string" ? row.description : "";
         const studentName = typeof row.student_name === "string" ? row.student_name : "Student";

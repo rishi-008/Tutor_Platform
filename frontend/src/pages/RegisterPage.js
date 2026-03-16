@@ -166,9 +166,6 @@ function RegisterPage() {
   // Function to handle uploading the proof document
   const handleProofSubmit = async (event) => {
     event.preventDefault();
-    const formData = new FormData();
-    formData.append('file', tutorData.proofdoc);
-
     const idRes = await fetch('/api/tutor/id');
     const reservedId = await idRes.json();
 

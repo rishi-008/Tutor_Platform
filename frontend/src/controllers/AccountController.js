@@ -98,16 +98,20 @@ const loginAccount = async (email, password) => {
     return null;
 }
 
-const fileBinUpload = async (file, id) => {
+const uploadTutorProofDoc = async (file, tutorId) => {
     const formData = new FormData();
     formData.append('file', file);
-    const url = `https://filebin.net/2l29ognrfwoiiszo/${file.name}`;
-    // const fileres = await fetch(url, {
-    //     method: 'POST',
-    //     body: file
-    // });
-    return url;
-}
+
+    const res = await fetch(`/api/upload/proofdoc/tutor/${tutorId}`, {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data?.message || 'Proof doc upload failed');
+    }
+    return data?.url;
+};
 
 const getFile = async (url) => {
     const rest = await fetch(url);
@@ -141,8 +145,12 @@ const registerTutor = async (tutor) => {
     }
     const res = await fetch('/api/tutor');
     const data = await res.json();
-    const url = await fileBinUpload(tutor.proofdoc, tutor.id);
-    tutor.proofdoc = url;
+
+    // If proofdoc is a File, upload it first (Spaces: proofdocs/tutor-<id>.*)
+    if (tutor.proofdoc && typeof tutor.proofdoc === 'object' && typeof tutor.proofdoc.name === 'string') {
+        tutor.proofdoc = await uploadTutorProofDoc(tutor.proofdoc, tutor.id);
+    }
+
     tt = data.find(t => t.email === tutor.email);
     if (tt) {
         throw new Error('Email already exists');
@@ -282,6 +290,7 @@ export {
     registerTutor,
     registerStudent,
     uploadProfilePic,
+    uploadTutorProofDoc,
     getNotifications,
     tutorListBasedOnQuery,
     updateTutorDescription,

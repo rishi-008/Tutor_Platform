@@ -91,6 +91,76 @@ const profilePicUpload = multer({
     },
 });
 
+const PROOF_DOC_MAX_BYTES = 8 * 1024 * 1024; // 8MB
+const safeProofDocExtension = (mimetype, originalName) => {
+    const mime = typeof mimetype === "string" ? mimetype.toLowerCase() : "";
+    if (mime === "application/pdf") return ".pdf";
+    // allow images too
+    return safeImageExtension(mimetype, originalName);
+};
+
+const proofDocUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: PROOF_DOC_MAX_BYTES },
+    fileFilter: (_req, file, cb) => {
+        const mime = typeof file?.mimetype === "string" ? file.mimetype.toLowerCase() : "";
+        const ok = mime === "application/pdf" || mime.startsWith("image/");
+        if (!ok) return cb(new Error("INVALID_FILE_TYPE"));
+        return cb(null, true);
+    },
+});
+
+app.post("/api/upload/proofdoc/tutor/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ message: "Invalid id" });
+    }
+
+    proofDocUpload.single("file")(req, res, (err) => {
+        if (err) {
+            if (err.code === "LIMIT_FILE_SIZE") {
+                return res.status(413).json({ message: "File too large (max 8MB)" });
+            }
+            if (err.message === "INVALID_FILE_TYPE") {
+                return res.status(400).json({ message: "Invalid file type (must be an image or PDF)" });
+            }
+            console.error("[upload] proofdoc error:", err);
+            return res.status(500).json({ message: "Upload failed" });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: "Missing file" });
+        }
+
+        Promise.resolve()
+            .then(async () => {
+                const ext = safeProofDocExtension(req.file.mimetype, req.file.originalname);
+                const key = `proofdocs/tutor-${id}${ext}`;
+
+                const spacesUrl = await uploadToSpacesIfConfigured({
+                    buffer: req.file.buffer,
+                    contentType: req.file.mimetype,
+                    key,
+                });
+                if (spacesUrl) {
+                    res.set("X-Upload-Storage", "spaces");
+                    return res.status(201).json({ url: spacesUrl });
+                }
+
+                const localPath = path.join(profilePicsDir, key);
+                fs.mkdirSync(path.dirname(localPath), { recursive: true });
+                fs.writeFileSync(localPath, req.file.buffer);
+                const url = `/uploads/profile-pics/${key}`;
+                res.set("X-Upload-Storage", "local");
+                return res.status(201).json({ url });
+            })
+            .catch((uploadErr) => {
+                console.error("[upload] proofdoc store error:", uploadErr);
+                return res.status(500).json({ message: "Upload failed" });
+            });
+    });
+});
+
 app.post("/api/upload/profile-pic", (req, res) => {
     profilePicUpload.single("file")(req, res, (err) => {
         if (err) {

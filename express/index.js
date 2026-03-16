@@ -111,7 +111,7 @@ app.post("/api/upload/profile-pic", (req, res) => {
         Promise.resolve()
             .then(async () => {
                 const ext = safeImageExtension(req.file.mimetype, req.file.originalname);
-                const key = `profile-${Date.now()}-${makeRandomId()}${ext}`;
+                const key = `profiles/profile-${Date.now()}-${makeRandomId()}${ext}`;
 
                 // Prefer DigitalOcean Spaces when configured
                 const spacesUrl = await uploadToSpacesIfConfigured({
@@ -120,12 +120,16 @@ app.post("/api/upload/profile-pic", (req, res) => {
                     key,
                 });
                 if (spacesUrl) {
+                    res.set("X-Upload-Storage", "spaces");
                     return res.status(201).json({ url: spacesUrl });
                 }
 
                 // Fallback: store locally on disk
-                fs.writeFileSync(path.join(profilePicsDir, key), req.file.buffer);
+                const localPath = path.join(profilePicsDir, key);
+                fs.mkdirSync(path.dirname(localPath), { recursive: true });
+                fs.writeFileSync(localPath, req.file.buffer);
                 const url = `/uploads/profile-pics/${key}`;
+                res.set("X-Upload-Storage", "local");
                 return res.status(201).json({ url });
             })
             .catch((uploadErr) => {
@@ -164,7 +168,7 @@ app.post("/api/upload/profile-pic/:userType/:id", (req, res) => {
         Promise.resolve()
             .then(async () => {
                 const ext = safeImageExtension(req.file.mimetype, req.file.originalname);
-                const key = `${userType}-${id}${ext}`;
+                const key = `profiles/${userType}-${id}${ext}`;
 
                 const spacesUrl = await uploadToSpacesIfConfigured({
                     buffer: req.file.buffer,
@@ -172,11 +176,15 @@ app.post("/api/upload/profile-pic/:userType/:id", (req, res) => {
                     key,
                 });
                 if (spacesUrl) {
+                    res.set("X-Upload-Storage", "spaces");
                     return res.status(201).json({ url: spacesUrl });
                 }
 
-                fs.writeFileSync(path.join(profilePicsDir, key), req.file.buffer);
+                const localPath = path.join(profilePicsDir, key);
+                fs.mkdirSync(path.dirname(localPath), { recursive: true });
+                fs.writeFileSync(localPath, req.file.buffer);
                 const url = `/uploads/profile-pics/${key}`;
+                res.set("X-Upload-Storage", "local");
                 return res.status(201).json({ url });
             })
             .catch((uploadErr) => {

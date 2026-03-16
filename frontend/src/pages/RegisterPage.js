@@ -248,6 +248,14 @@ function RegisterPage() {
     <div className="register-container">
       {!showUploadForm ? (
         <div className="register-card">
+          <button
+            type="button"
+            className="auth-back-button"
+            onClick={() => navigate('/')}
+            aria-label="Back to home"
+          >
+            &larr;
+          </button>
           <h2>Register to Tutor Connect</h2>
           {error && <p className="register-error">{error}</p>}
           <form onSubmit={handleSubmit}>
@@ -287,11 +295,27 @@ function RegisterPage() {
         </div>
       ) : submissionComplete ? (
         <div className="register-card">
+          <button
+            type="button"
+            className="auth-back-button"
+            onClick={() => navigate('/')}
+            aria-label="Back to home"
+          >
+            &larr;
+          </button>
           <h2>Thank You!</h2>
           <p>Once admin approves your document, you will have access to your account.</p>
         </div>
       ) : (
         <div className="register-card">
+          <button
+            type="button"
+            className="auth-back-button"
+            onClick={() => navigate('/')}
+            aria-label="Back to home"
+          >
+            &larr;
+          </button>
           <h2>Upload Proof of Qualification</h2>
           <form onSubmit={handleProofSubmit}>
             <input type="file" accept=".jpg,.png" onChange={handleFileChange} required />

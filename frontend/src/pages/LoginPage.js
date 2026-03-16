@@ -40,6 +40,14 @@ function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-box">
+        <button
+          type="button"
+          className="auth-back-button"
+          onClick={() => navigate('/')}
+          aria-label="Back to home"
+        >
+          &larr;
+        </button>
         <h2>Login to Tutor Connect</h2>
         {error && <p className="login-error">{error}</p>}
         <form onSubmit={handleLogin}>

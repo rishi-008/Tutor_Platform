@@ -420,6 +420,12 @@ const notificationsForUserId = async (userId) => {
     return r.rows;
 };
 
+const stripPasswordFromAccount = (account) => {
+    if (!account || typeof account !== "object") return account;
+    const { password, ...rest } = account;
+    return rest;
+};
+
 const coerceTimestampOrNull = (value) => {
     if (value === null || value === undefined) return null;
     if (typeof value === "string") {
@@ -814,6 +820,63 @@ app.get(
     }
 })
 );
+
+// Demo login endpoints (used for recruiter-friendly one-click demo links)
+app.get(
+    "/api/demo/student",
+    asyncHandler(async (_req, res) => {
+        let id = Number(process.env.DEMO_STUDENT_ID);
+        if (!Number.isInteger(id) || id <= 0) {
+            const email = String(process.env.DEMO_STUDENT_EMAIL || "student1@example.com").trim();
+            const idResult = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND user_type = 'student'",
+                [email]
+            );
+            if (idResult.rowCount === 0) {
+                return res.status(404).json({ message: "Demo student not found" });
+            }
+            id = Number(idResult.rows[0].id);
+        }
+
+        const r = await pool.query(`${STUDENT_SELECT_COLUMNS} AND s.user_id = $1`, [id]);
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Demo student not found" });
+        }
+        const acc = studentRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(stripPasswordFromAccount(acc));
+    })
+);
+
+app.get(
+    "/api/demo/tutor",
+    asyncHandler(async (_req, res) => {
+        let id = Number(process.env.DEMO_TUTOR_ID);
+        if (!Number.isInteger(id) || id <= 0) {
+            const email = String(process.env.DEMO_TUTOR_EMAIL || "tutor1@example.com").trim();
+            const idResult = await pool.query(
+                "SELECT id FROM users WHERE email = $1 AND user_type = 'tutor'",
+                [email]
+            );
+            if (idResult.rowCount === 0) {
+                return res.status(404).json({ message: "Demo tutor not found" });
+            }
+            id = Number(idResult.rows[0].id);
+        }
+
+        const r = await pool.query(`${TUTOR_SELECT_COLUMNS} AND t.user_id = $1`, [id]);
+        if (r.rowCount === 0) {
+            return res.status(404).json({ message: "Demo tutor not found" });
+        }
+        const acc = tutorRowToAccount(r.rows[0]);
+        acc.notifications = await notificationsForUserId(id);
+        return res.json(stripPasswordFromAccount(acc));
+    })
+);
+
+// Vanity demo links (one-click, no credentials exposed)
+app.get("/demo/student", (_req, res) => res.redirect(302, "/login?demo=student"));
+app.get("/demo/tutor", (_req, res) => res.redirect(302, "/login?demo=tutor"));
 
 
 
@@ -1678,8 +1741,11 @@ app.get(
             return res.status(404).json({ message: "Item not found" });
         }
 
-        const chat = Array.isArray(r.rows[0].chat_messages) ? r.rows[0].chat_messages : r.rows[0].chat_messages || [];
-        return res.json(chat);
+        const MAX_CHAT_MESSAGES = 6;
+        const chat = Array.isArray(r.rows[0].chat_messages)
+            ? r.rows[0].chat_messages
+            : r.rows[0].chat_messages || [];
+        return res.json(chat.slice(-MAX_CHAT_MESSAGES));
     })
 );
 
@@ -1689,6 +1755,8 @@ app.post(
         const id = Number(req.params.id);
         const { sender, message } = req.body || {};
 
+        const MAX_CHAT_MESSAGES = 6;
+
         if (!Number.isInteger(id)) {
             return res.status(400).json({ message: "Invalid id" });
         }
@@ -1697,15 +1765,32 @@ app.post(
         }
 
         const payload = JSON.stringify([{ sender, message }]);
+
+        // Atomic: only append if the current chat history has < MAX_CHAT_MESSAGES
         const upd = await pool.query(
-            "UPDATE sessions SET chat_messages = COALESCE(chat_messages, '[]'::jsonb) || $2::jsonb WHERE id = $1 RETURNING chat_messages",
-            [id, payload]
+            "UPDATE sessions SET chat_messages = COALESCE(chat_messages, '[]'::jsonb) || $2::jsonb WHERE id = $1 AND jsonb_array_length(COALESCE(chat_messages, '[]'::jsonb)) < $3 RETURNING chat_messages",
+            [id, payload, MAX_CHAT_MESSAGES]
         );
+
         if (upd.rowCount === 0) {
-            return res.status(404).json({ message: "Item not found" });
+            // Distinguish not-found from limit-reached
+            const check = await pool.query(
+                "SELECT jsonb_array_length(COALESCE(chat_messages, '[]'::jsonb)) AS n FROM sessions WHERE id = $1",
+                [id]
+            );
+            if (check.rowCount === 0) {
+                return res.status(404).json({ message: "Item not found" });
+            }
+            const n = Number(check.rows[0].n || 0);
+            if (n >= MAX_CHAT_MESSAGES) {
+                return res.status(429).json({ message: "Limit of 6 messages in chat history" });
+            }
+            return res.status(503).json({ message: "Unable to send chat message" });
         }
 
-        const chat = Array.isArray(upd.rows[0].chat_messages) ? upd.rows[0].chat_messages : upd.rows[0].chat_messages || [];
+        const chat = Array.isArray(upd.rows[0].chat_messages)
+            ? upd.rows[0].chat_messages
+            : upd.rows[0].chat_messages || [];
         return res.json(chat);
     })
 );

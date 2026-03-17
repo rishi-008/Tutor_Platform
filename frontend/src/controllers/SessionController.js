@@ -138,6 +138,9 @@ const sendChat = async (id, sender, message) => {
         body: JSON.stringify({ sender, message }),
     });
     const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data?.message || `Chat request failed (${response.status})`);
+    }
     return data;
 }
 

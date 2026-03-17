@@ -4,6 +4,30 @@ Full‑stack tutoring marketplace that connects students with qualified tutors, 
 
 Live site: https://www.tutormarketplaceproject.me/
 
+## Demo login (one-click)
+
+The live deployment supports a one-click demo login (no setup required):
+
+- Student demo: https://www.tutormarketplaceproject.me/login?demo=student
+- Tutor demo: https://www.tutormarketplaceproject.me/login?demo=tutor
+
+Even shorter vanity links:
+
+- Student demo: https://www.tutormarketplaceproject.me/demo/student
+- Tutor demo: https://www.tutormarketplaceproject.me/demo/tutor
+
+Demo credentials (manual login):
+
+- Student: `student1@example.com` / `password123`
+- Tutor: `tutor1@example.com` / `password123`
+
+Note: For public demo safety, each session is limited to 6 chat messages (additional messages are rejected).
+
+For your own deployment, the demo endpoints will default to the emails above as long as those users exist in your database. You can also override which accounts are used via env vars:
+
+- `DEMO_STUDENT_ID` (a valid `users.id` where `user_type = 'student'`) **or** `DEMO_STUDENT_EMAIL`
+- Optional: `DEMO_TUTOR_ID` (a valid `users.id` where `user_type = 'tutor'`) **or** `DEMO_TUTOR_EMAIL`
+
 ## Highlights
 
 - **Role-based accounts**: Students and tutors share a `users` table with `user_type`, with profile data stored in `students` / `tutors`.
@@ -73,6 +97,13 @@ Optional (DigitalOcean Spaces uploads):
 - `DO_PROFILE_PICS_BUCKET` (default: `tutor-platform-profile-pics`)
 - `DO_PROFILE_PICS_PUBLIC_BASE_URL` (public base URL for objects)
 - `DO_SPACES_ENDPOINT` (defaults to `https://<region>.digitaloceanspaces.com`)
+
+Optional (demo links):
+
+- `DEMO_STUDENT_ID`
+- `DEMO_STUDENT_EMAIL`
+- `DEMO_TUTOR_ID`
+- `DEMO_TUTOR_EMAIL`
 
 ### 3) Build the frontend
 

@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/LoginPage.css';
 import { loginAccount } from '../controllers/AccountController';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [demoLoading, setDemoLoading] = useState(false);
 
   // Mock database of users
   const users = [
@@ -37,6 +39,44 @@ function LoginPage() {
     }
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const demo = String(params.get('demo') || '').toLowerCase();
+    if (demo !== 'student' && demo !== 'tutor') return;
+
+    let cancelled = false;
+    setDemoLoading(true);
+    setError('');
+
+    const run = async () => {
+      try {
+        const res = await fetch(demo === 'tutor' ? '/api/demo/tutor' : '/api/demo/student');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || 'Demo login failed');
+        }
+        if (cancelled) return;
+
+        if (demo === 'tutor') {
+          navigate('/tutorPortal', { state: { user: data, isTutor: true } });
+        } else {
+          navigate('/userPortal', { state: { user: data, isTutor: false } });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setError(e?.message || 'Demo login failed');
+      } finally {
+        if (cancelled) return;
+        setDemoLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.search, navigate]);
+
   return (
     <div className="login-container">
       <div className="login-box">
@@ -49,6 +89,7 @@ function LoginPage() {
           &larr;
         </button>
         <h2>Login to Tutor Connect</h2>
+        {demoLoading && <p>Logging you in...</p>}
         {error && <p className="login-error">{error}</p>}
         <form onSubmit={handleLogin}>
           <input

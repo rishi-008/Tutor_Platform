@@ -5,6 +5,7 @@ import AiSessionPackModal from '../../components/AiSessionPackModal';
 function StudentCoursePage({ course, setSelectedContent }) {
     const [chatInput, setChatInput] = useState('');
     const [chatOutput, setChatOutput] = useState(course?.chatMessages ?? []);
+    const [chatError, setChatError] = useState('');
     const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
     const placeholderProfilePic = 'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
@@ -27,13 +28,16 @@ function StudentCoursePage({ course, setSelectedContent }) {
 
     const handleSendChat = async () => {
         if (chatInput.trim()) {
-            const updatedChat = await sendChat(course.id, "student", chatInput);
-            if (Array.isArray(updatedChat)) {
-                setChatOutput(updatedChat);
-            } else {
-                setChatOutput((prev) => [...(Array.isArray(prev) ? prev : []), { sender: "student", message: chatInput }]);
+            try {
+                const updatedChat = await sendChat(course.id, "student", chatInput);
+                setChatError('');
+                if (Array.isArray(updatedChat)) {
+                    setChatOutput(updatedChat);
+                }
+                setChatInput('');
+            } catch (e) {
+                setChatError(e?.message || 'Failed to send message');
             }
-            setChatInput('');
         }
     };
 
@@ -53,6 +57,7 @@ function StudentCoursePage({ course, setSelectedContent }) {
 
     React.useEffect(() => {
         setChatOutput(course?.chatMessages ?? []);
+        setChatError('');
         async function fetchData() {
             if (!course?.id) return;
             const chat = await getChat(course.id);
@@ -140,6 +145,9 @@ function StudentCoursePage({ course, setSelectedContent }) {
                                 <p>No chat messages available.</p>
                             )}
                         </div>
+                        {chatError ? (
+                            <p style={{ color: '#dc3545', margin: '8px 0 0 0' }}>{chatError}</p>
+                        ) : null}
                         <div className="chatInputContainer">
                             <input
                                 type="text"
@@ -256,6 +264,7 @@ function StudentCoursePage({ course, setSelectedContent }) {
                     display: flex;
                     flex-direction: column;
                     gap: 20px;
+                    min-height: 0;
                 }
 
                 .progressContainer,
@@ -286,16 +295,18 @@ function StudentCoursePage({ course, setSelectedContent }) {
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
+                    min-height: 0;
                 }
 
                 .chatMessages {
-                    max-height: 150px;
+                    flex: 1;
                     overflow-y: auto;
                     margin-bottom: 10px;
+                    min-height: 0;
                 }
 
                 .chatInputContainer {
-                    margin-top: 30rem;
+                    margin-top: auto;
                     display: flex;
                     gap: 10px;
                 }

@@ -41,7 +41,12 @@ function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search || '');
-    const demo = String(params.get('demo') || '').toLowerCase();
+    let demo = String(params.get('demo') || '').toLowerCase();
+    if (demo !== 'student' && demo !== 'tutor') {
+      const path = String(location.pathname || '');
+      if (path === '/demo/student') demo = 'student';
+      if (path === '/demo/tutor') demo = 'tutor';
+    }
     if (demo !== 'student' && demo !== 'tutor') return;
 
     let cancelled = false;
@@ -75,7 +80,7 @@ function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [location.search, navigate]);
+  }, [location.pathname, location.search, navigate]);
 
   return (
     <div className="login-container">

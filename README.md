@@ -8,11 +8,6 @@ Live site: https://www.tutormarketplaceproject.me/
 
 The live deployment supports a one-click demo login (no setup required):
 
-- Student demo: https://www.tutormarketplaceproject.me/login?demo=student
-- Tutor demo: https://www.tutormarketplaceproject.me/login?demo=tutor
-
-Even shorter vanity links:
-
 - Student demo: https://www.tutormarketplaceproject.me/demo/student
 - Tutor demo: https://www.tutormarketplaceproject.me/demo/tutor
 

@@ -235,7 +235,7 @@ function StudentCoursePage({ course, setSelectedContent }) {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 20rem;
+                    gap: 12px;
                 }
 
                 .tutorDetails h3 {
@@ -357,6 +357,53 @@ function StudentCoursePage({ course, setSelectedContent }) {
 
                 .endButton {
                     background: #dc3545;
+                }
+
+                @media (max-width: 768px) {
+                    .courseDetailsPage {
+                        height: auto;
+                        min-height: 100vh;
+                        overflow: auto;
+                    }
+
+                    .courseOperations {
+                        flex-wrap: wrap;
+                        gap: 10px;
+                    }
+
+                    .courseActions {
+                        flex-wrap: wrap;
+                    }
+
+                    .courseContainer {
+                        grid-template-columns: 1fr;
+                        padding: 12px;
+                        gap: 12px;
+                    }
+
+                    .tutorHeader {
+                        gap: 12px;
+                        flex-wrap: wrap;
+                    }
+
+                    .profilePicture {
+                        width: 72px;
+                        height: 72px;
+                    }
+
+                    .chatInputContainer {
+                        flex-direction: column;
+                    }
+
+                    .sendButton {
+                        width: 100%;
+                        padding: 10px 12px;
+                        border-radius: 8px;
+                    }
+
+                    .classLink a {
+                        word-break: break-word;
+                    }
                 }
             `}</style>
         </div>

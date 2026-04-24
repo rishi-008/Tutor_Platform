@@ -138,4 +138,16 @@
   .close-button:hover {
     background: #c9302c;
   }
-  
+
+  @media (max-width: 768px) {
+    .admin-header {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .admin-table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }

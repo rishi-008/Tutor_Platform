@@ -50,3 +50,9 @@
 .seeMoreButton:hover {
     background-color: #3a3f47;
 }
+
+@media (max-width: 480px) {
+    .courseCard {
+        width: 100%;
+    }
+}

@@ -62,6 +62,7 @@ function StudentExplorePage(props) {
             margin: 8px 0;
             box-sizing: border-box;
             align-items: center;
+            flex-wrap: wrap;
           }
 
           .navbar input {
@@ -96,6 +97,27 @@ function StudentExplorePage(props) {
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
             padding: 20px;
+          }
+
+          @media (max-width: 480px) {
+            .navbar {
+              padding: 12px 12px;
+            }
+
+            .navbar input {
+              min-width: 0;
+              width: 100%;
+              flex: 1 1 100%;
+            }
+
+            .tutorSearchButton {
+              width: 100%;
+            }
+
+            .Tutor-List {
+              grid-template-columns: 1fr;
+              padding: 12px;
+            }
           }
         `}
       </style>

@@ -46,7 +46,7 @@ const TutorCard = (props) => {
                         align-items: center;
                         border: 1px solid #ccc;
                         padding: 16px;
-                        width: 300px;
+                        width: min(300px, 100%);
                         height: 45vh;
                         margin: 16px;
                         background-color: #fff;
@@ -54,6 +54,8 @@ const TutorCard = (props) => {
                     .tutor-name {
                         position: absolute;
                         top: 90%;
+                        left: 0;
+                        right: 0;
                         padding-left: 10px;
                         color: #000;
                         background-color: rgba(255, 255, 255, 0.7);
@@ -75,6 +77,23 @@ const TutorCard = (props) => {
                     .profile-pic-container {
                         height: 80%;
                         position: relative;
+                    }
+
+                    @media (max-width: 480px) {
+                        .tutor-card {
+                            margin: 10px;
+                            height: auto;
+                        }
+
+                        .profile-pic-container {
+                            height: 220px;
+                            width: 100%;
+                        }
+
+                        .tutor-name {
+                            top: auto;
+                            bottom: 8px;
+                        }
                     }
                 `}
             </style>

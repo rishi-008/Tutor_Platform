@@ -144,9 +144,8 @@ function AiSessionPackModal({ isOpen, onClose, courseId, audience }) {
                     background: white;
                     padding: 20px;
                     border-radius: 8px;
-                    width: 70%;
-                    max-width: 900px;
-                    max-height: 80%;
+                    width: min(900px, calc(100% - 32px));
+                    max-height: 85vh;
                     overflow-y: auto;
                 }
 
@@ -189,6 +188,20 @@ function AiSessionPackModal({ isOpen, onClose, courseId, audience }) {
                 .hint,
                 .answer {
                     margin: 6px 0 0 0;
+                }
+
+                @media (max-width: 480px) {
+                    .modalContent {
+                        padding: 14px;
+                    }
+
+                    .headerRow {
+                        flex-wrap: wrap;
+                    }
+
+                    .closeButton {
+                        width: 100%;
+                    }
                 }
             `}</style>
         </div>

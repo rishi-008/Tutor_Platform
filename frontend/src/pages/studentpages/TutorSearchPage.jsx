@@ -71,8 +71,8 @@ function TutorSearchPage() {
             <style jsx>{`
                 .header{
                     display: flex;
-                    justify-content: start;
-                    gap: 50rem;
+                    justify-content: flex-start;
+                    gap: 0;
                     background: none;
                 }
                 .backButton {
@@ -109,6 +109,21 @@ function TutorSearchPage() {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 20px;
+                }
+
+                @media (max-width: 480px) {
+                    .searchBar {
+                        padding: 0 12px;
+                    }
+
+                    h1 {
+                        padding: 0 12px;
+                    }
+
+                    .tutorList {
+                        padding: 0 12px;
+                        gap: 12px;
+                    }
                 }
 
                 .tutorCard {

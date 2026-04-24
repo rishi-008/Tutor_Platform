@@ -297,6 +297,25 @@ function StudentMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgres
                     width: calc(33.33% - 20px);
                 }
 
+                @media (max-width: 768px) {
+                    .coursesContainer {
+                        grid-template-columns: 1fr;
+                        padding: 12px;
+                    }
+
+                    .fullSection {
+                        grid-column: span 1;
+                    }
+
+                    .courseCardsDeclined {
+                        flex-wrap: wrap;
+                    }
+
+                    .declinedCards {
+                        width: 100%;
+                    }
+                }
+
                 .modalOverlay {
                     position: fixed;
                     top: 0;

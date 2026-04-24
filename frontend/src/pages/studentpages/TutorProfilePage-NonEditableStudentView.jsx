@@ -297,6 +297,7 @@ body, html {
 .course-list {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .course {
@@ -346,6 +347,44 @@ body, html {
     color: black;
     text-decoration: none;
     cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    body, html {
+        overflow: auto;
+    }
+
+    .profile-container {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .tutor-info {
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .info {
+        margin-left: 12px;
+    }
+
+    .btn-large {
+        width: 100%;
+    }
+
+    .about {
+        padding: 16px;
+        margin: 0;
+    }
+
+    .courses {
+        height: auto;
+    }
+
+    .modal-content {
+        width: calc(100% - 24px);
+    }
 }
             `}
             </style>

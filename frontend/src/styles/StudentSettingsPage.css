@@ -118,3 +118,17 @@ input[type="email"]:disabled {
 .button:hover, .saveButton:hover {
     background-color: #0056b3;
 }
+
+@media (max-width: 768px) {
+    .settingsContainer {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .notification-section {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+}

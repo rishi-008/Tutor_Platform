@@ -149,3 +149,17 @@ font-size: 1em;
 margin-bottom: 10px;
 text-align: center;
 }
+
+@media (max-width: 480px) {
+  .register-container {
+    padding: 16px;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .register-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+  }
+}

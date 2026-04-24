@@ -138,6 +138,67 @@
     border-bottom: 5px solid white;
 }
 
+@media (max-width: 900px) {
+    .sidePanel {
+        width: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .sidePanel {
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        padding: 12px 12px;
+        gap: 12px;
+    }
+
+    .profileImageContainer {
+        margin-bottom: 0;
+        width: auto;
+        padding-top: 0;
+    }
+
+    .profileImage {
+        width: 56px;
+        height: 56px;
+    }
+
+    .ButtonsContainer {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .ButtonsGroup {
+        flex-direction: row;
+        width: auto;
+        gap: 10px;
+        flex-wrap: nowrap;
+    }
+
+    .sideButton {
+        width: auto;
+        padding: 8px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    .dashboardContent {
+        padding: 12px;
+        overflow: visible;
+    }
+}
+
 
 
 

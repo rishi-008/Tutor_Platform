@@ -323,6 +323,26 @@ function TutorMyCoursesPage({ setSelectedContent, setSelectedCourse, inProgressC
                     display: flex;
                     flex-wrap: wrap;
                 }
+
+                @media (max-width: 768px) {
+                    .coursesContainer {
+                        grid-template-columns: 1fr;
+                        padding: 12px;
+                    }
+
+                    .fullSection {
+                        grid-column: span 1;
+                    }
+
+                    .courseCardsDeclined {
+                        flex-wrap: wrap;
+                    }
+
+                    .declinedCards {
+                        width: 100%;
+                        margin-right: 0;
+                    }
+                }
                 .modalOverlay {
                     position: fixed;
                     top: 0;

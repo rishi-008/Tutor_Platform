@@ -434,6 +434,31 @@ const TutorProfilePageEditable = (props) => {
                     border: 1px solid #ccc;
                     border-radius: 5px;
                 }
+
+                @media (max-width: 768px) {
+                    .profile-container {
+                        height: auto;
+                        min-height: 100vh;
+                    }
+
+                    .tutor-info {
+                        flex-wrap: wrap;
+                        gap: 12px;
+                    }
+
+                    .info {
+                        margin-left: 12px;
+                    }
+
+                    .content,
+                    .courses {
+                        padding: 16px;
+                    }
+
+                    .bannerGrid {
+                        grid-template-columns: 1fr;
+                    }
+                }
             `}</style>
         </>
     );

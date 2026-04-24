@@ -23,6 +23,9 @@ function HomePage() {
 
   return (
     <div className="HomePage">
+      <div className="demo-notice">
+        Demo resume project — not a real service.
+      </div>
       <header className="header">
     <h1>Tutor Marketplace</h1>
     <div className="header-buttons">

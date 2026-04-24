@@ -54,6 +54,8 @@ const TutorCard = ({ tutor: tutorData, user = null }) => {
                 {`
                     .tpTutorCardLink {
                         display: block;
+                        width: min(360px, 100%);
+                        flex: 0 1 360px;
                         color: inherit;
                         text-decoration: none;
                     }
@@ -65,7 +67,7 @@ const TutorCard = ({ tutor: tutorData, user = null }) => {
                         border-radius: 12px;
                         overflow: hidden;
                         background-color: #fff;
-                        width: min(320px, 100%);
+                        width: 100%;
                         margin: 0;
                     }
 

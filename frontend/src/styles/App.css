@@ -136,9 +136,11 @@ body {
 }
 
 .tutors {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
   justify-content: center;
-  gap: 20px;
+  gap: 24px;
+  padding: 0 16px;
 }
 
 
@@ -185,7 +187,8 @@ body {
   }
 
   .tutors {
-    flex-wrap: wrap;
-    padding: 0 16px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 12px;
   }
 }

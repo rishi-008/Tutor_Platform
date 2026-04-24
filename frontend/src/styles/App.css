@@ -141,75 +141,6 @@ body {
   gap: 20px;
 }
 
-.tutor-card {
-  width: 400px;
-  height: 600px;
-  padding: 20px;
-  background-color: #fff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-}
-
-.profile-pic-container {
-  position: relative;
-}
-
-.profile-pic {
-  width: 100%;
-  height: 150px;
-  background-color: #f0f0f0;
-  margin-bottom: 10px;
-  border-radius: 4px;
-  object-fit: cover;
-}
-
-.rating {
-  position: absolute;
-  bottom: 5px;
-  right: 10px;
-  font-size: 14px;
-  color: #ffcc00; /* Gold color for star */
-  background-color: #fff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-  font-weight: bold;
-}
-
-.tutor-name {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 10px; 
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.take-course-button {
-  background-color: #ffc107;
-  padding: 5px;
-  margin-bottom: 10px;
-  font-weight: bold;
-  color: #fff;
-  border-radius: 4px;
-  display: inline-block;
-  text-decoration: none;
-  cursor: pointer;
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.take-course-button:hover {
-  background-color: #e0a806; 
-}
-
-.details {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #555;
-}
 
 @media (max-width: 768px) {
   .header {
@@ -222,10 +153,13 @@ body {
     flex-wrap: wrap;
     justify-content: center;
     width: 100%;
+    gap: 12px;
   }
 
   .header-buttons .button {
-    margin-left: 0;
+    margin: 0;
+    flex: 1 1 140px;
+    text-align: center;
   }
 
   .banner {
@@ -253,11 +187,5 @@ body {
   .tutors {
     flex-wrap: wrap;
     padding: 0 16px;
-  }
-
-  .tutor-card {
-    width: 100%;
-    max-width: 420px;
-    height: auto;
   }
 }

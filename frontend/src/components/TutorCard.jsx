@@ -1,98 +1,156 @@
 import { Link } from 'react-router-dom';
 
-const TutorCard = (props) => {
-    const tutorData = props.tutor;
-    const tutor = tutorData.tutor;
-    console.log(tutorData);
-    const user = props.user || null;
-
+const TutorCard = ({ tutor: tutorData, user = null }) => {
     const fallbackAvatar =
         'https://tutor-platform-profile-pics.tor1.cdn.digitaloceanspaces.com/profiles/Placeholder_Profile_Pic.png';
 
-    const tutorProfilePic = tutor?.profile_pic || tutor?.profilePic || tutorData?.profile_pic || tutorData?.profilePic || '';
+    const tutor = tutorData?.tutor ?? tutorData ?? {};
+
+    const tutorProfilePic =
+        tutor?.profile_pic ||
+        tutor?.profilePic ||
+        tutorData?.profile_pic ||
+        tutorData?.profilePic ||
+        '';
+
+    const tutorName = tutor?.name || 'Tutor';
+    const rating = tutor?.rating;
+    const education = tutor?.education || '';
+    const costPerHour = tutor?.costPerHour;
 
     const handleImgError = (e) => {
         if (!e?.currentTarget) return;
         if (e.currentTarget.src === fallbackAvatar) return;
         e.currentTarget.src = fallbackAvatar;
     };
+
     return (
         <>
-            <Link to="/tutorProfile" state={{ tutor: tutorData, user: user }}>
-                <div className="tutor-card">
-                    <div className="profile-pic-container">
+            <Link className="tpTutorCardLink" to="/tutorProfile" state={{ tutor: tutorData, user }}>
+                <div className="tpTutorCard">
+                    <div className="tpTutorCardMedia">
                         <img
-                            className="profile-pic"
+                            className="tpTutorCardImage"
                             src={tutorProfilePic || fallbackAvatar}
-                            alt={`${tutor?.name || 'Tutor'} profile`}
+                            alt={`${tutorName} profile`}
                             onError={handleImgError}
                         />
-                        <h3 className="tutor-name">{tutor.name}</h3>
-                        <div className="rating">
-                            ⭐{tutor.rating}/5
-                        </div>
+                        <div className="tpTutorCardName">{tutorName}</div>
+                        {rating !== undefined && rating !== null ? (
+                            <div className="tpTutorCardRating">⭐{rating}/5</div>
+                        ) : null}
                     </div>
-                    <div className="course-details">
-                        <span>{tutor.education}</span>
-                        <span>${tutor.costPerHour}/hr</span>
+
+                    <div className="tpTutorCardMeta">
+                        <span>{education}</span>
+                        <span>
+                            {costPerHour !== undefined && costPerHour !== null ? `$${costPerHour}/hr` : ''}
+                        </span>
                     </div>
                 </div>
             </Link>
+
             <style jsx="true">
-                {`  
-                    .tutor-card {
+                {`
+                    .tpTutorCardLink {
+                        display: block;
+                        color: inherit;
+                        text-decoration: none;
+                    }
+
+                    .tpTutorCard {
                         display: flex;
                         flex-direction: column;
-                        align-items: center;
                         border: 1px solid #ccc;
-                        padding: 16px;
-                        width: min(300px, 100%);
-                        height: 45vh;
-                        margin: 16px;
+                        border-radius: 12px;
+                        overflow: hidden;
                         background-color: #fff;
+                        width: min(320px, 100%);
+                        margin: 0;
                     }
-                    .tutor-name {
-                        position: absolute;
-                        top: 90%;
-                        left: 0;
-                        right: 0;
-                        padding-left: 10px;
-                        color: #000;
-                        background-color: rgba(255, 255, 255, 0.7);
-                        padding: 4px 8px;
-                    }
-                    .course-details {
-                        margin-top: 16px;
-                        display: flex;
-                        justify-content: space-between;
+
+                    .tpTutorCardMedia {
+                        position: relative;
                         width: 100%;
-                        color: #000;
+                        aspect-ratio: 4 / 3;
+                        background: #f0f0f0;
                     }
-                    .profile-pic {
+
+                    .tpTutorCardImage {
                         height: 100%;
                         width: 100%;
                         object-fit: cover;
-                        border-radius: 6px;
-                    }
-                    .profile-pic-container {
-                        height: 80%;
-                        position: relative;
+                        object-position: 50% 20%;
+                        display: block;
                     }
 
-                    @media (max-width: 480px) {
-                        .tutor-card {
-                            margin: 10px;
-                            height: auto;
+                    .tpTutorCardName {
+                        position: absolute;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        padding: 10px 12px;
+                        padding-right: 90px;
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #000;
+                        background: rgba(255, 255, 255, 0.72);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .tpTutorCardRating {
+                        position: absolute;
+                        right: 12px;
+                        bottom: 10px;
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #ffb300;
+                        background-color: #fff;
+                        padding: 6px 10px;
+                        border-radius: 999px;
+                        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+                        white-space: nowrap;
+                    }
+
+                    .tpTutorCardMeta {
+                        padding: 14px 16px;
+                        display: flex;
+                        justify-content: space-between;
+                        color: #000;
+                        gap: 10px;
+                        flex-wrap: wrap;
+                    }
+
+                    .tpTutorCardMeta span:first-child {
+                        flex: 1 1 auto;
+                        min-width: 0;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
+
+                    .tpTutorCardMeta span:last-child {
+                        flex: 0 0 auto;
+                        white-space: nowrap;
+                    }
+
+                    @media (max-width: 360px) {
+                        .tpTutorCardName {
+                            font-size: 20px;
+                            padding-right: 80px;
                         }
 
-                        .profile-pic-container {
-                            height: 220px;
-                            width: 100%;
+                        .tpTutorCardRating {
+                            right: 10px;
+                            bottom: 10px;
+                            font-size: 15px;
+                            padding: 6px 9px;
                         }
 
-                        .tutor-name {
-                            top: auto;
-                            bottom: 8px;
+                        .tpTutorCardMeta {
+                            padding: 12px 14px;
                         }
                     }
                 `}

@@ -1,15 +1,12 @@
 # Tutor Platform (Tutor Connect)
 
-Full‑stack tutoring marketplace that connects students with qualified tutors, manages the end‑to‑end session lifecycle, and supports real-time-ish session collaboration (chat + resources). The app is deployed on a DigitalOcean droplet and uses Postgres as the source of truth.
+Full‑stack tutoring marketplace that connects students with qualified tutors, manages the end‑to‑end session lifecycle, and supports real-time-ish session collaboration (chat + resources). The app was built to run on a DigitalOcean droplet and uses Postgres as the source of truth.
 
-Live site: https://www.tutormarketplaceproject.me/
+> **Note:** This was a demo deployment that has since been taken down for budget reasons, so there is no live site to link to. The sections below document the architecture and features as built; you can run it locally by following [Local Development / Running](#local-development--running).
 
 ## Demo login (one-click)
 
-The live deployment supports a one-click demo login (no setup required):
-
-- Student demo: https://www.tutormarketplaceproject.me/demo/student
-- Tutor demo: https://www.tutormarketplaceproject.me/demo/tutor
+The app supports a one-click demo login (no setup required) at the `/demo/student` and `/demo/tutor` routes.
 
 Demo credentials (manual login):
 
